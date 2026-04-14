@@ -34,6 +34,20 @@ const responseTimes = [
   { title: "Access or login issues", detail: "Same day where possible on weekdays." },
   { title: "Demo & rollout planning", detail: "2–3 days to schedule a walkthrough." },
 ];
+const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+function readContactMessages() {
+  try {
+    const raw = sessionStorage.getItem(CONTACT_MESSAGES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    sessionStorage.removeItem(CONTACT_MESSAGES_KEY);
+    return [];
+  }
+}
 
 function validateForm(values) {
   const errors = {};
@@ -109,7 +123,7 @@ export default function ContactUsPage() {
     });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (isBlockedRole) {
       setErrors((prev) => ({
@@ -123,6 +137,37 @@ export default function ContactUsPage() {
       setErrors(nextErrors);
       return;
     }
+    const payload = {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      subject: form.subject.trim(),
+      message: form.message.trim(),
+    };
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/contact-messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        throw new Error("Failed to save contact message.");
+      }
+    } catch {
+      setErrors((prev) => ({
+        ...prev,
+        form: "Could not send to backend. Ensure the backend is running and try again.",
+      }));
+      return;
+    }
+    const existing = readContactMessages();
+    const localPayload = {
+      id: `msg-${Date.now()}`,
+      ...payload,
+      status: "NEW",
+      createdAt: new Date().toISOString(),
+    };
+    sessionStorage.setItem(CONTACT_MESSAGES_KEY, JSON.stringify([localPayload, ...existing]));
     setErrors({});
     setSubmitted(true);
   }

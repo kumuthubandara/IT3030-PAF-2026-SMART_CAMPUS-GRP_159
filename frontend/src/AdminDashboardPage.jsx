@@ -1,9 +1,29 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
+const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
+function readContactMessages() {
+  try {
+    const raw = sessionStorage.getItem(CONTACT_MESSAGES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    sessionStorage.removeItem(CONTACT_MESSAGES_KEY);
+    return [];
+  }
+}
+
+function formatDateTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Unknown time";
+  return d.toLocaleString();
+}
 
 const tiles = [
   {
@@ -71,9 +91,9 @@ const tiles = [
     ),
   },
   {
-    id: "notifications",
-    title: "Notifications",
-    description: "Monitor system alerts and user notifications.",
+    id: "contact-messages",
+    title: "Contact Messages",
+    description: "View and manage messages sent through the Contact Us form.",
     iconBg: "bg-violet-500/20 text-violet-300",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -81,7 +101,7 @@ const tiles = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+          d="M8 10h8m-8 4h5m-7 6h12a2 2 0 002-2V8a2 2 0 00-2-2H6a2 2 0 00-2 2v10a2 2 0 002 2z"
         />
       </svg>
     ),
@@ -121,10 +141,52 @@ function CloseIcon() {
 export default function AdminDashboardPage() {
   const { user } = useAuth();
   const displayName = user?.name || "Administrator";
+  const role = String(user?.role ?? "")
+    .trim()
+    .toLowerCase();
+  const isAdmin = role === "administrator" || role === "admin";
   const [modal, setModal] = useState(null);
+  const [contactMessages, setContactMessages] = useState(() => readContactMessages());
+  const [selectedMessageId, setSelectedMessageId] = useState(null);
+
+  async function loadContactMessages() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/contact-messages`);
+      if (!res.ok) {
+        throw new Error("Failed to load");
+      }
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped = data.map((item) => ({
+          id: item.id ?? `db-${Math.random()}`,
+          name: item.name ?? "Unknown",
+          email: item.email ?? "Unknown",
+          phone: item.phone ?? "Unknown",
+          subject: item.subject ?? "(no subject)",
+          message: item.message ?? "",
+          status: item.status ?? "NEW",
+          createdAt: item.createdAt ?? new Date().toISOString(),
+        }));
+        setContactMessages(mapped);
+        sessionStorage.setItem(CONTACT_MESSAGES_KEY, JSON.stringify(mapped));
+        return;
+      }
+    } catch {
+      // fallback to session storage below
+    }
+    setContactMessages(readContactMessages());
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   useEffect(() => {
     if (!modal) return;
+    if (modal === "contact-messages") {
+      void loadContactMessages();
+      setSelectedMessageId(null);
+    }
     function onKey(e) {
       if (e.key === "Escape") setModal(null);
     }
@@ -137,6 +199,7 @@ export default function AdminDashboardPage() {
   }, [modal]);
 
   const activeTile = tiles.find((t) => t.id === modal);
+  const selectedMessage = contactMessages.find((msg) => msg.id === selectedMessageId) || null;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
@@ -154,7 +217,7 @@ export default function AdminDashboardPage() {
               <span className="text-cyan-400">{displayName}!</span>
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
-              Manage users, facilities, bookings, maintenance, notifications, and system settings
+              Manage users, facilities, bookings, maintenance, contact messages, and system settings
               from the tools below. This is a front-end demo—connect your APIs when ready.
             </p>
             <p className="mt-2 text-xs text-slate-500">
@@ -330,22 +393,78 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
-              {modal === "notifications" && (
+              {modal === "contact-messages" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    System alerts, booking outcomes, and ticket updates can be centralized here.
-                    The header bell links to the same{" "}
-                    <Link
-                      to="/notifications#notifications"
-                      className="font-medium text-cyan-400 hover:text-cyan-300"
-                    >
-                      Notifications
+                    Review and manage submissions from the{" "}
+                    <Link to="/contact" className="font-medium text-cyan-400 hover:text-cyan-300">
+                      Contact Us
                     </Link>{" "}
-                    hub for everyone.
+                    form. Assign ownership, mark priority, and track follow-up actions from this
+                    queue when your backend API is connected.
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No admin-wide feed connected (demo).
-                  </div>
+                  {contactMessages.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
+                      No contact messages yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {contactMessages.map((msg) => (
+                        <article
+                          key={msg.id}
+                          className="rounded-xl border border-slate-600/50 bg-slate-950/50 p-4"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-white">{msg.subject}</p>
+                            <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-xs font-medium text-cyan-200">
+                              {msg.status || "NEW"}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {msg.name} • {msg.email} • {msg.phone}
+                          </p>
+                          <p className="mt-2 text-sm text-slate-300">{msg.message}</p>
+                          <p className="mt-2 text-xs text-slate-500">
+                            Received: {formatDateTime(msg.createdAt)}
+                          </p>
+                          <div className="mt-3">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedMessageId(msg.id)}
+                              className="rounded-full border border-cyan-500/40 px-3 py-1 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-500/10"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                  {selectedMessage ? (
+                    <div className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            Message details: {selectedMessage.subject}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {selectedMessage.name} • {selectedMessage.email} • {selectedMessage.phone}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMessageId(null)}
+                          className="text-xs font-medium text-slate-400 transition hover:text-slate-200"
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-300">{selectedMessage.message}</p>
+                      <p className="mt-3 text-xs text-slate-500">
+                        Received: {formatDateTime(selectedMessage.createdAt)}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               )}
 
