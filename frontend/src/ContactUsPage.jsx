@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 
@@ -34,8 +35,61 @@ const responseTimes = [
   { title: "Demo & rollout planning", detail: "2–3 days to schedule a walkthrough." },
 ];
 
+function validateForm(values) {
+  const errors = {};
+
+  const name = values.name.trim();
+  const email = values.email.trim();
+  const phone = values.phone.trim();
+  const subject = values.subject.trim();
+  const message = values.message.trim();
+
+  if (!name) {
+    errors.name = "Name is required.";
+  } else if (!/^[A-Za-z\s]+$/.test(name)) {
+    errors.name = "Name can contain letters and spaces only.";
+  } else if (name.length < 3) {
+    errors.name = "Name should be at least 3 characters long.";
+  } else if (name.length > 50) {
+    errors.name = "Name should not exceed 50 characters.";
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errors.email = "Please enter a valid email address.";
+  }
+
+  if (!phone) {
+    errors.phone = "Phone number is required.";
+  } else if (!/^\+?\d+$/.test(phone)) {
+    errors.phone = "Phone number must contain digits only, with optional + at the beginning.";
+  } else {
+    const localPattern = /^\d{10}$/;
+    const internationalPattern = /^\+[1-9]\d{7,14}$/;
+    if (!localPattern.test(phone) && !internationalPattern.test(phone)) {
+      errors.phone =
+        "Phone number must be 10 digits (local) or a valid international format starting with +.";
+    }
+  }
+
+  if (subject.length < 5) {
+    errors.subject = "Subject should be at least 5 characters long.";
+  }
+
+  if (message.length < 15) {
+    errors.message = "Message should be at least 15 characters long.";
+  }
+
+  return errors;
+}
+
 export default function ContactUsPage() {
+  const { user } = useAuth();
+  const role = String(user?.role ?? "")
+    .trim()
+    .toLowerCase();
+  const isBlockedRole = role === "administrator" || role === "admin" || role === "technician" || role === "tech";
   const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -47,10 +101,29 @@ export default function ContactUsPage() {
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
   }
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (isBlockedRole) {
+      setErrors((prev) => ({
+        ...prev,
+        form: "Administrators and technicians cannot send contact messages.",
+      }));
+      return;
+    }
+    const nextErrors = validateForm(form);
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+    setErrors({});
     setSubmitted(true);
   }
 
@@ -165,6 +238,12 @@ export default function ContactUsPage() {
                 Fill in the form below. This is a front-end demo only; connect it
                 to your API or email service when you are ready.
               </p>
+              {isBlockedRole ? (
+                <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
+                  Administrators and technicians cannot send contact messages. Only students,
+                  lecturers, or guests (not logged in) can send this form.
+                </p>
+              ) : null}
 
               {submitted ? (
                 <div className="mt-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center">
@@ -185,6 +264,7 @@ export default function ContactUsPage() {
               ) : (
                 <form
                   onSubmit={handleSubmit}
+                  noValidate
                   className="mt-8 space-y-5 rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-6 sm:p-8"
                 >
                   <div>
@@ -202,9 +282,13 @@ export default function ContactUsPage() {
                       autoComplete="name"
                       value={form.name}
                       onChange={handleChange}
+                      aria-invalid={Boolean(errors.name)}
                       className="mt-2 w-full rounded-xl border border-slate-500/50 bg-slate-800/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                       placeholder="Your full name"
                     />
+                    {errors.name ? (
+                      <p className="mt-2 text-xs text-red-300">{errors.name}</p>
+                    ) : null}
                   </div>
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div>
@@ -222,27 +306,36 @@ export default function ContactUsPage() {
                         autoComplete="email"
                         value={form.email}
                         onChange={handleChange}
+                        aria-invalid={Boolean(errors.email)}
                         className="mt-2 w-full rounded-xl border border-slate-500/50 bg-slate-800/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                         placeholder="you@university.edu"
                       />
+                      {errors.email ? (
+                        <p className="mt-2 text-xs text-red-300">{errors.email}</p>
+                      ) : null}
                     </div>
                     <div>
                       <label
                         htmlFor="phone"
                         className="block text-sm font-medium text-slate-200"
                       >
-                        Phone <span className="text-slate-500">(optional)</span>
+                        Phone
                       </label>
                       <input
                         id="phone"
                         name="phone"
                         type="tel"
+                        required
                         autoComplete="tel"
                         value={form.phone}
                         onChange={handleChange}
+                        aria-invalid={Boolean(errors.phone)}
                         className="mt-2 w-full rounded-xl border border-slate-500/50 bg-slate-800/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                         placeholder="+94 …"
                       />
+                      {errors.phone ? (
+                        <p className="mt-2 text-xs text-red-300">{errors.phone}</p>
+                      ) : null}
                     </div>
                   </div>
                   <div>
@@ -259,9 +352,13 @@ export default function ContactUsPage() {
                       required
                       value={form.subject}
                       onChange={handleChange}
+                      aria-invalid={Boolean(errors.subject)}
                       className="mt-2 w-full rounded-xl border border-slate-500/50 bg-slate-800/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                       placeholder="e.g. Demo request"
                     />
+                    {errors.subject ? (
+                      <p className="mt-2 text-xs text-red-300">{errors.subject}</p>
+                    ) : null}
                   </div>
                   <div>
                     <label
@@ -277,16 +374,38 @@ export default function ContactUsPage() {
                       rows={5}
                       value={form.message}
                       onChange={handleChange}
+                      aria-invalid={Boolean(errors.message)}
                       className="mt-2 w-full resize-y rounded-xl border border-slate-500/50 bg-slate-800/80 px-4 py-3 text-slate-100 placeholder:text-slate-500 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                       placeholder="Tell us how we can help…"
                     />
+                    {errors.message ? (
+                      <p className="mt-2 text-xs text-red-300">{errors.message}</p>
+                    ) : null}
                   </div>
-                  <button
-                    type="submit"
-                    className="w-full rounded-full bg-cyan-400 py-3.5 text-sm font-semibold text-slate-950 shadow-md shadow-cyan-500/25 transition hover:bg-cyan-300 sm:w-auto sm:px-10"
+                  {errors.form ? <p className="text-xs text-red-300">{errors.form}</p> : null}
+                  <div
+                    className={`flex w-full items-center gap-3 ${
+                      !user ? "justify-between" : "justify-start"
+                    }`}
                   >
-                    Send message
-                  </button>
+                    {!user ? (
+                      <Link
+                        to="/login?redirect=/contact"
+                        className="inline-flex justify-center rounded-full border border-cyan-400/50 px-6 py-3.5 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/10"
+                      >
+                        Login
+                      </Link>
+                    ) : null}
+                    <button
+                      type="submit"
+                      disabled={isBlockedRole}
+                      className={`rounded-full bg-cyan-400 px-10 py-3.5 text-sm font-semibold text-slate-950 shadow-md shadow-cyan-500/25 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none ${
+                        !user ? "ml-auto" : ""
+                      }`}
+                    >
+                      Send message
+                    </button>
+                  </div>
                 </form>
               )}
             </div>
