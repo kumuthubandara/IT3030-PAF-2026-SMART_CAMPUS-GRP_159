@@ -51,7 +51,7 @@ export default function LoginPage() {
             Demo login: <strong className="text-cyan-400">Student</strong> opens the student hub;{" "}
             <strong className="text-violet-300">Lecturer</strong> opens the lecturer campus view;{" "}
             <strong className="text-indigo-300">Administrator</strong> opens the admin dashboard;{" "}
-            <strong className="text-cyan-400">Technician</strong> uses the operations dashboard.
+            <strong className="text-cyan-400">Technician</strong> opens the technician dashboard.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">

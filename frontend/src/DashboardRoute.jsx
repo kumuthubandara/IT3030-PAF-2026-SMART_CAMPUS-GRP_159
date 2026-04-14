@@ -3,6 +3,7 @@ import { useAuth } from "./AuthContext";
 import StudentDashboardPage from "./StudentDashboardPage";
 import LecturerDashboardPage from "./LecturerDashboardPage";
 import AdminDashboardPage from "./AdminDashboardPage";
+import TechnicianDashboardPage from "./TechnicianDashboardPage";
 import DashboardPage from "./DashboardPage";
 
 export default function DashboardRoute() {
@@ -15,6 +16,7 @@ export default function DashboardRoute() {
   const role = String(user.role ?? "")
     .trim()
     .toLowerCase();
+
   if (role === "student") {
     return <StudentDashboardPage />;
   }
@@ -23,6 +25,9 @@ export default function DashboardRoute() {
   }
   if (role === "administrator" || role === "admin") {
     return <AdminDashboardPage />;
+  }
+  if (role === "technician" || role === "tech") {
+    return <TechnicianDashboardPage />;
   }
 
   return <DashboardPage />;
