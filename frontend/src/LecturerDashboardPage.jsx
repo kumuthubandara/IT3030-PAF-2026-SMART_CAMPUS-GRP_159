@@ -4,6 +4,7 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 const tiles = [
   {
@@ -124,6 +125,12 @@ function formatAccountCreated(iso) {
   });
 }
 
+function formatDateTime(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "Unknown time";
+  return d.toLocaleString();
+}
+
 function CloseIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -136,6 +143,22 @@ export default function LecturerDashboardPage() {
   const { user } = useAuth();
   const displayName = user?.name || "Lecturer";
   const [modal, setModal] = useState(null);
+  const [recentActivities, setRecentActivities] = useState([]);
+
+  async function loadRecentActivities() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`);
+      if (!res.ok) {
+        throw new Error("Failed to load recent activity");
+      }
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setRecentActivities(data);
+      }
+    } catch {
+      // Keep previous data if API is unavailable.
+    }
+  }
 
   useEffect(() => {
     if (!modal) return;
@@ -149,6 +172,14 @@ export default function LecturerDashboardPage() {
       document.body.style.overflow = "";
     };
   }, [modal]);
+
+  useEffect(() => {
+    void loadRecentActivities();
+    const id = setInterval(() => {
+      void loadRecentActivities();
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
 
   const activeTile = tiles.find((t) => t.id === modal);
 
@@ -252,6 +283,35 @@ export default function LecturerDashboardPage() {
             </button>
           ))}
         </div>
+
+        <section className="mt-12">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-heading text-lg font-semibold text-violet-300">Recent Activity</h2>
+            <span className="text-xs text-slate-500">Auto refreshes every 10s</span>
+          </div>
+          <p className="mt-1 text-sm text-slate-400">
+            View your latest bookings, ticket updates, and actions.
+          </p>
+          {recentActivities.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-600/60 bg-slate-900/50 p-6 text-sm text-slate-500">
+              No recent activity yet.
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-3 rounded-2xl border border-violet-500/15 bg-slate-900/70 p-4">
+              {recentActivities.map((activity) => (
+                <li
+                  key={`${activity.id ?? activity.createdAt}-${activity.message}`}
+                  className="rounded-xl border border-slate-600/40 bg-slate-800/70 px-3 py-2.5"
+                >
+                  <p className="text-sm text-slate-200">{activity.message}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {activity.category || "SYSTEM"} • {formatDateTime(activity.createdAt)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
       <SiteFooter />
 
