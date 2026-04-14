@@ -1,4 +1,5 @@
 import { useAuth } from "./AuthContext";
+import { Link } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 
@@ -104,7 +105,7 @@ export default function FacilitiesPage() {
                 : variant === "student"
                   ? "Your bookable spaces"
                   : variant === "admin"
-                    ? "Campus facilities (reference)"
+                    ? "Facilities overview"
                     : "Manage campus spaces with confidence"}
             </h2>
             <p className="mt-6 text-base leading-relaxed text-slate-400 sm:text-lg">
@@ -123,11 +124,9 @@ export default function FacilitiesPage() {
                 </>
               ) : variant === "admin" ? (
                 <>
-                  <strong className="text-amber-200">Administrators cannot book facilities</strong> in
-                  this app—only <strong className="text-slate-200">students</strong> and{" "}
-                  <strong className="text-slate-200">lecturers</strong> can place bookings. Below is a
-                  read-only catalogue for oversight; use <strong className="text-slate-200">Manage Bookings</strong>{" "}
-                  on your admin dashboard to approve or reject requests.
+                  Read-only facilities catalogue for <strong className="text-slate-200">admin oversight</strong>.
+                  Students and lecturers submit booking requests; admins review them from the
+                  dashboard workflow.
                 </>
               ) : (
                 <>
@@ -137,10 +136,20 @@ export default function FacilitiesPage() {
               )}
             </p>
             {variant === "admin" ? (
-              <p className="mx-auto mt-6 max-w-2xl rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/95">
-                Booking is disabled for your role. Students and lecturers see their own bookable
-                categories on this page when they sign in.
-              </p>
+              <div className="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-3">
+                <Link
+                  to="/dashboard"
+                  className="rounded-full border border-cyan-400/50 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/10"
+                >
+                  Open admin dashboard
+                </Link>
+                <Link
+                  to="/contact"
+                  className="rounded-full border border-slate-600/70 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
+                >
+                  Contact messages source
+                </Link>
+              </div>
             ) : null}
           </div>
         </section>
@@ -167,7 +176,7 @@ export default function FacilitiesPage() {
                       : variant === "student"
                         ? "text-emerald-200"
                         : variant === "admin"
-                          ? "text-amber-100"
+                          ? "text-cyan-200"
                           : "text-cyan-200"
                   }`}
                 >
@@ -181,7 +190,7 @@ export default function FacilitiesPage() {
                       : variant === "student"
                         ? "text-emerald-300/90"
                         : variant === "admin"
-                          ? "text-amber-200/90"
+                          ? "text-cyan-400"
                           : "text-cyan-400"
                   }`}
                 >

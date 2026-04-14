@@ -148,6 +148,7 @@ export default function AdminDashboardPage() {
   const [modal, setModal] = useState(null);
   const [contactMessages, setContactMessages] = useState(() => readContactMessages());
   const [selectedMessageId, setSelectedMessageId] = useState(null);
+  const [recentActivities, setRecentActivities] = useState([]);
 
   async function loadContactMessages() {
     try {
@@ -177,6 +178,22 @@ export default function AdminDashboardPage() {
     setContactMessages(readContactMessages());
   }
 
+  async function loadRecentActivities() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=20`);
+      if (!res.ok) {
+        throw new Error("Failed to load");
+      }
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setRecentActivities(data);
+        return;
+      }
+    } catch {
+      // keep current list if backend is unavailable
+    }
+  }
+
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
   }
@@ -197,6 +214,14 @@ export default function AdminDashboardPage() {
       document.body.style.overflow = "";
     };
   }, [modal]);
+
+  useEffect(() => {
+    void loadRecentActivities();
+    const id = setInterval(() => {
+      void loadRecentActivities();
+    }, 10000);
+    return () => clearInterval(id);
+  }, []);
 
   const activeTile = tiles.find((t) => t.id === modal);
   const selectedMessage = contactMessages.find((msg) => msg.id === selectedMessageId) || null;
@@ -291,6 +316,35 @@ export default function AdminDashboardPage() {
             </button>
           ))}
         </div>
+
+        <section className="mt-12">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-heading text-lg font-semibold text-cyan-300">Recent Activity</h3>
+            <span className="text-xs text-slate-500">Auto refreshes every 10s</span>
+          </div>
+          <p className="mt-1 text-sm text-slate-400">
+            View latest system actions such as bookings, tickets, and updates.
+          </p>
+          {recentActivities.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-600/60 bg-slate-900/50 p-6 text-sm text-slate-500">
+              No recent activity yet.
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-3 rounded-2xl border border-cyan-500/15 bg-slate-900/70 p-4">
+              {recentActivities.map((activity) => (
+                <li
+                  key={`${activity.id ?? activity.createdAt}-${activity.message}`}
+                  className="rounded-xl border border-slate-600/40 bg-slate-800/70 px-3 py-2.5"
+                >
+                  <p className="text-sm text-slate-200">{activity.message}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {activity.category || "SYSTEM"} • {formatDateTime(activity.createdAt)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
       <SiteFooter />
 

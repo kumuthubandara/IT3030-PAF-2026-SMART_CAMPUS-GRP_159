@@ -14,6 +14,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/contact-messages/**").permitAll()
+                        .requestMatchers("/api/admin/activities/**").permitAll()
                         .anyRequest().permitAll()
                 )
                 .build();

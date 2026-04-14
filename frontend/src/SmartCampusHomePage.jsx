@@ -136,7 +136,7 @@ export default function SmartCampusHomePage() {
                   to="/signup"
                   className="text-sm font-semibold text-cyan-400 transition hover:text-cyan-300"
                 >
-                  Try signup (demo) →
+                  Try signup →
                 </Link>
                 <Link
                   to="/#how-it-works"
