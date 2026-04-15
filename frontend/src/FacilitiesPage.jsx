@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 
-/** Default campus view for visitors and non-admin roles (e.g. technician). Admins use the `admin` variant—read-only, no booking. */
+/** Default campus view for guests/other roles not covered by student/lecturer/admin/technician filters. */
 const defaultFacilities = [
   {
     name: "Lecture Halls",
@@ -72,6 +72,13 @@ const lecturerFacilities = [
     availability: "Catalog (demo)",
   },
 ];
+
+/** Admin and technician see the union of lecturer + student facility sets. */
+const adminTechnicianFacilities = [...lecturerFacilities, ...studentFacilities].filter(
+  (facility, index, list) =>
+    list.findIndex((item) => item.name.trim().toLowerCase() === facility.name.trim().toLowerCase()) ===
+    index,
+);
 
 const lectureHallBuildings = [
   {
@@ -168,12 +175,17 @@ export default function FacilitiesPage() {
   const isLecturer = role === "lecturer";
   const isStudent = role === "student";
   const isAdmin = role === "administrator" || role === "admin";
+  const isTechnician = role === "technician" || role === "tech";
 
   const facilities = isLecturer
     ? lecturerFacilities
     : isStudent
       ? studentFacilities
-      : defaultFacilities;
+      : isAdmin || isTechnician
+        ? adminTechnicianFacilities
+        : defaultFacilities;
+  const canOpenDetailedFacilityCards = isLecturer || isAdmin || isTechnician;
+  const isReadOnlyRole = isAdmin || isTechnician;
 
   const variant = isLecturer ? "lecturer" : isStudent ? "student" : isAdmin ? "admin" : "default";
   /** `lecture-halls` and `computer-labs` share the same building → floor → block flow. */
@@ -274,7 +286,7 @@ export default function FacilitiesPage() {
         <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid gap-5 md:grid-cols-2">
             {facilities.map((facility) => (
-              variant === "lecturer" &&
+              canOpenDetailedFacilityCards &&
               (facility.name === "Lecture halls" || facility.name === "Computer labs") ? (
                 <button
                   key={facility.name}
@@ -296,7 +308,7 @@ export default function FacilitiesPage() {
                   <h3 className="font-heading text-xl font-semibold text-violet-200">{facility.name}</h3>
                   <p className="mt-3 text-sm leading-relaxed text-slate-400">{facility.description}</p>
                   <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-violet-300/90">
-                    {facility.availability}
+                    {isReadOnlyRole ? "Reference only · no booking" : facility.availability}
                   </p>
                   <p className="mt-2 text-xs font-medium text-violet-300">
                     Open popup →
@@ -340,13 +352,13 @@ export default function FacilitiesPage() {
                             : "text-cyan-400"
                     }`}
                   >
-                    {variant === "admin" ? "Reference only · no booking" : facility.availability}
+                    {isReadOnlyRole ? "Reference only · no booking" : facility.availability}
                   </p>
                 </article>
               )
             ))}
           </div>
-          {variant === "lecturer" && openFacilityModal ? (
+          {openFacilityModal ? (
             <>
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
                 <div className="w-full max-w-4xl rounded-2xl border border-violet-500/25 bg-slate-900 shadow-2xl shadow-violet-900/40">
@@ -369,9 +381,13 @@ export default function FacilitiesPage() {
 
                   <div className="px-5 py-5 sm:px-7 sm:py-6">
                     <p className="text-sm text-slate-400">
-                      {openFacilityModal === "computer-labs"
-                        ? "Select a building to view computer lab availability for booking."
-                        : "Select a building to view lecture hall availability for booking."}
+                      {isReadOnlyRole
+                        ? openFacilityModal === "computer-labs"
+                          ? "Read-only view for admins and technicians. Computer labs cannot be booked from this page."
+                          : "Read-only view for admins and technicians. Lecture halls cannot be booked from this page."
+                        : openFacilityModal === "computer-labs"
+                          ? "Select a building to view computer lab availability for booking."
+                          : "Select a building to view lecture hall availability for booking."}
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-3">
@@ -484,9 +500,13 @@ export default function FacilitiesPage() {
 
                     <div className="px-5 py-5 sm:px-7 sm:py-6">
                       <p className="text-sm text-slate-400">
-                        {openFacilityModal === "computer-labs"
-                          ? "Select a block to view computer lab availability for booking."
-                          : "Select a block to view lecture hall availability for booking."}
+                        {isReadOnlyRole
+                          ? openFacilityModal === "computer-labs"
+                            ? "Read-only details for computer labs. Booking is disabled for admins and technicians."
+                            : "Read-only details for lecture halls. Booking is disabled for admins and technicians."
+                          : openFacilityModal === "computer-labs"
+                            ? "Select a block to view computer lab availability for booking."
+                            : "Select a block to view lecture hall availability for booking."}
                       </p>
 
                       <div className="mt-4 flex flex-wrap gap-3">
