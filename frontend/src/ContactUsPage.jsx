@@ -280,8 +280,7 @@ export default function ContactUsPage() {
                 Send a message
               </h3>
               <p className="mt-2 text-sm text-slate-300">
-                Fill in the form below. This is a front-end demo only; connect it
-                to your API or email service when you are ready.
+                Fill in the form below.
               </p>
               {isBlockedRole ? (
                 <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/90">
