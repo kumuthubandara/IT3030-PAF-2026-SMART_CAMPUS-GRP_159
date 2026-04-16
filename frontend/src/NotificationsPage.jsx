@@ -1,40 +1,33 @@
-import { useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
-
-const sampleItems = [
-  {
-    id: "1",
-    title: "Booking approved",
-    detail: "Engineering Lab A · Tomorrow 10:00 AM – 12:00 PM",
-    time: "2 hours ago",
-    tone: "emerald",
-  },
-  {
-    id: "2",
-    title: "Maintenance update",
-    detail: "Ticket #TK-4821 — Technician assigned to Block C AC issue",
-    time: "Yesterday",
-    tone: "cyan",
-  },
-  {
-    id: "3",
-    title: "Approval needed",
-    detail: "Seminar Hall B request is waiting for facilities sign-off",
-    time: "2 days ago",
-    tone: "amber",
-  },
-];
-
-const toneRing = {
-  emerald: "border-emerald-500/30 bg-emerald-500/10",
-  cyan: "border-cyan-500/30 bg-cyan-500/10",
-  amber: "border-amber-500/30 bg-amber-500/10",
-};
+import { ticketsApi } from "./api/ticketsApi";
 
 export default function NotificationsPage() {
+  const { user } = useAuth();
   const { hash } = useLocation();
+  const [items, setItems] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadNotifications() {
+      if (!user) return;
+      try {
+        setLoading(true);
+        setError("");
+        const data = await ticketsApi.listNotifications(user);
+        setItems(Array.isArray(data) ? data : []);
+      } catch (e) {
+        setError(e.message || "Failed to load notifications.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadNotifications();
+  }, [user]);
 
   useEffect(() => {
     if (hash !== "#notifications") return;
@@ -45,6 +38,10 @@ export default function NotificationsPage() {
     });
     return () => cancelAnimationFrame(t);
   }, [hash]);
+
+  if (!user) {
+    return <Navigate to="/login?redirect=/notifications" replace />;
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
@@ -70,8 +67,7 @@ export default function NotificationsPage() {
               Your campus activity
             </h1>
             <p className="mt-4 text-sm text-slate-400 sm:text-base">
-              Approvals, ticket updates, and comments will stream here when your backend is
-              connected. The bell in the header always brings you back to this view.
+              Ticket status changes, assignments, and comments appear here.
             </p>
           </div>
         </section>
@@ -81,18 +77,21 @@ export default function NotificationsPage() {
           className="mx-auto w-full max-w-2xl scroll-mt-28 px-4 py-10 sm:px-6 lg:px-8 lg:py-12"
         >
           <h2 className="sr-only">Recent notifications</h2>
+          {error ? <p className="mb-4 rounded-lg bg-red-500/15 p-3 text-red-200">{error}</p> : null}
+          {loading ? <p className="text-slate-300">Loading notifications...</p> : null}
           <ul className="space-y-3">
-            {sampleItems.map((item) => (
+            {items.map((item) => (
               <li
                 key={item.id}
-                className={`rounded-2xl border p-4 sm:p-5 ${toneRing[item.tone]}`}
+                className="rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4 sm:p-5"
               >
-                <p className="font-medium text-slate-100">{item.title}</p>
-                <p className="mt-1 text-sm text-slate-400">{item.detail}</p>
-                <p className="mt-2 text-xs text-slate-500">{item.time}</p>
+                <p className="font-medium text-slate-100">{item.message}</p>
+                <p className="mt-1 text-sm text-slate-400">Ticket ID: {item.ticketId}</p>
+                <p className="mt-2 text-xs text-slate-500">{new Date(item.createdAt).toLocaleString()}</p>
               </li>
             ))}
           </ul>
+          {!loading && items.length === 0 ? <p className="mt-4 text-slate-400">No notifications yet.</p> : null}
 
           <p className="mt-8 text-center text-sm text-slate-500">
             Prefer email? Adjust preferences on the{" "}
