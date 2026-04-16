@@ -114,4 +114,21 @@ export const ticketsApi = {
   listActivities(ticketId, user) {
     return request(`/api/tickets/${ticketId}/activities`, { user });
   },
+  async exportTicketsCsv(user, filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.priority) params.set("priority", filters.priority);
+    if (filters.q) params.set("q", filters.q);
+    const query = params.toString();
+    const res = await fetch(`${API_BASE}/api/tickets/export${query ? `?${query}` : ""}`, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader(user),
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Export failed (${res.status})`);
+    }
+    return res.blob();
+  },
 };

@@ -30,6 +30,7 @@ export default function TicketsPage() {
 
   const role = String(user?.role ?? "").trim().toLowerCase();
   const canCreate = role !== "technician";
+  const isAdmin = role === "administrator" || role === "admin";
 
   async function loadTickets() {
     if (!user) return;
@@ -67,6 +68,23 @@ export default function TicketsPage() {
     }
   }
 
+  async function handleExportCsv() {
+    try {
+      setError("");
+      const blob = await ticketsApi.exportTicketsCsv(user, filters);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "tickets-report.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e.message || "CSV export failed.");
+    }
+  }
+
   if (!user) {
     return <Navigate to="/login?redirect=/tickets" replace />;
   }
@@ -81,9 +99,20 @@ export default function TicketsPage() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-heading text-3xl font-bold text-white">Ticket Management</h1>
-          <Link to="/notifications" className="text-sm text-cyan-300 hover:text-cyan-200">
-            View notifications
-          </Link>
+          <div className="flex items-center gap-3">
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="rounded-lg border border-cyan-500/60 px-3 py-1.5 text-sm text-cyan-200 hover:bg-cyan-500/10"
+              >
+                Export CSV
+              </button>
+            ) : null}
+            <Link to="/notifications" className="text-sm text-cyan-300 hover:text-cyan-200">
+              View notifications
+            </Link>
+          </div>
         </div>
 
         {error ? <p className="mb-4 rounded-lg bg-red-500/15 p-3 text-red-200">{error}</p> : null}

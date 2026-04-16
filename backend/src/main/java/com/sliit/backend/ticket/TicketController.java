@@ -7,6 +7,8 @@ import com.sliit.backend.ticket.dto.UpdateStatusRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -107,5 +109,18 @@ public class TicketController {
     @PreAuthorize("hasAnyRole('USER','ADMIN','TECHNICIAN')")
     public List<TicketActivity> listActivities(@PathVariable Long id, Authentication authentication) {
         return service.listTicketActivities(id, authentication);
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> exportTickets(Authentication authentication,
+                                                @RequestParam(required = false) TicketStatus status,
+                                                @RequestParam(required = false) TicketPriority priority,
+                                                @RequestParam(required = false) String q) {
+        String csv = service.exportTicketsCsv(authentication, status, priority, q);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=tickets-report.csv")
+                .contentType(new MediaType("text", "csv"))
+                .body(csv);
     }
 }

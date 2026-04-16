@@ -74,6 +74,33 @@ public class TicketService {
                 .toList();
     }
 
+    public String exportTicketsCsv(Authentication auth, TicketStatus status, TicketPriority priority, String q) {
+        if (!hasRole(auth, "ROLE_ADMIN")) {
+            throw new BadRequestException("Only admin can export ticket reports.");
+        }
+        List<Ticket> tickets = listTickets(auth, status, priority, q);
+        StringBuilder csv = new StringBuilder();
+        csv.append("id,title,category,priority,status,location,createdUser,assignedTechnician,createdAt,updatedAt,ageHours,resolutionHours,slaBreached,resolutionNotes\n");
+        for (Ticket ticket : tickets) {
+            csv.append(ticket.getId()).append(",")
+                    .append(csvEscape(ticket.getTitle())).append(",")
+                    .append(csvEscape(ticket.getCategory())).append(",")
+                    .append(ticket.getPriority()).append(",")
+                    .append(ticket.getStatus()).append(",")
+                    .append(csvEscape(ticket.getLocation())).append(",")
+                    .append(csvEscape(ticket.getCreatedUser())).append(",")
+                    .append(csvEscape(ticket.getAssignedTechnician())).append(",")
+                    .append(ticket.getCreatedAt()).append(",")
+                    .append(ticket.getUpdatedAt()).append(",")
+                    .append(ticket.getAgeHours()).append(",")
+                    .append(ticket.getResolutionHours() == null ? "" : ticket.getResolutionHours()).append(",")
+                    .append(ticket.isSlaBreached()).append(",")
+                    .append(csvEscape(ticket.getResolutionNotes()))
+                    .append("\n");
+        }
+        return csv.toString();
+    }
+
     public Ticket getTicket(Long id, Authentication auth) {
         Ticket ticket = findTicket(id);
         if (hasRole(auth, "ROLE_ADMIN") || ticket.getCreatedUser().equals(auth.getName())
@@ -239,5 +266,12 @@ public class TicketService {
         activity.setActor(actor);
         activity.setAction(action);
         activityRepository.save(activity);
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 }
