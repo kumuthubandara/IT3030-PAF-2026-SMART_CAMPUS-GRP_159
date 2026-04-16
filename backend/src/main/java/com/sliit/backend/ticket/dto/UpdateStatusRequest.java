@@ -4,6 +4,7 @@ import com.sliit.backend.ticket.TicketStatus;
 import jakarta.validation.constraints.NotNull;
 
 public record UpdateStatusRequest(
-        @NotNull TicketStatus status
+        @NotNull TicketStatus status,
+        String resolutionNotes
 ) {
 }

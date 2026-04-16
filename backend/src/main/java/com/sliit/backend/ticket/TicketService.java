@@ -10,7 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 @Service
 public class TicketService {
@@ -19,15 +22,18 @@ public class TicketService {
     private final TicketCommentRepository commentRepository;
     private final TicketAttachmentRepository attachmentRepository;
     private final TicketNotificationRepository notificationRepository;
+    private final TicketActivityRepository activityRepository;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketCommentRepository commentRepository,
                          TicketAttachmentRepository attachmentRepository,
-                         TicketNotificationRepository notificationRepository) {
+                         TicketNotificationRepository notificationRepository,
+                         TicketActivityRepository activityRepository) {
         this.ticketRepository = ticketRepository;
         this.commentRepository = commentRepository;
         this.attachmentRepository = attachmentRepository;
         this.notificationRepository = notificationRepository;
+        this.activityRepository = activityRepository;
     }
 
     public Ticket createTicket(CreateTicketRequest request, Authentication auth) {
@@ -39,16 +45,33 @@ public class TicketService {
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setLocation(request.location());
         ticket.setCreatedUser(auth.getName());
-        return ticketRepository.save(ticket);
+        Ticket saved = ticketRepository.save(ticket);
+        createActivity(saved, auth.getName(), "Ticket created");
+        return saved;
     }
 
-    public List<Ticket> listTickets(Authentication auth) {
+    public List<Ticket> listTickets(Authentication auth, TicketStatus status, TicketPriority priority, String q) {
+        List<Ticket> base;
         if (hasRole(auth, "ROLE_ADMIN")) {
-            return ticketRepository.findAll().stream()
-                    .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
+            base = ticketRepository.findAll();
+        } else if (hasRole(auth, "ROLE_TECHNICIAN")) {
+            base = ticketRepository.findAll().stream()
+                    .filter(t -> Objects.equals(t.getAssignedTechnician(), auth.getName()))
                     .toList();
+        } else {
+            base = ticketRepository.findByCreatedUserOrderByCreatedAtDesc(auth.getName());
         }
-        return ticketRepository.findByCreatedUserOrderByCreatedAtDesc(auth.getName());
+        String keyword = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
+        return base.stream()
+                .filter(t -> status == null || t.getStatus() == status)
+                .filter(t -> priority == null || t.getPriority() == priority)
+                .filter(t -> keyword.isBlank()
+                        || t.getTitle().toLowerCase(Locale.ROOT).contains(keyword)
+                        || t.getDescription().toLowerCase(Locale.ROOT).contains(keyword)
+                        || t.getCategory().toLowerCase(Locale.ROOT).contains(keyword)
+                        || t.getLocation().toLowerCase(Locale.ROOT).contains(keyword))
+                .sorted(Comparator.comparing(Ticket::getCreatedAt).reversed())
+                .toList();
     }
 
     public Ticket getTicket(Long id, Authentication auth) {
@@ -61,7 +84,7 @@ public class TicketService {
     }
 
     @Transactional
-    public Ticket updateStatus(Long id, TicketStatus nextStatus, Authentication auth) {
+    public Ticket updateStatus(Long id, TicketStatus nextStatus, String resolutionNotes, Authentication auth) {
         Ticket ticket = findTicket(id);
         if (hasRole(auth, "ROLE_TECHNICIAN")) {
             if (ticket.getAssignedTechnician() == null || !ticket.getAssignedTechnician().equals(auth.getName())) {
@@ -70,9 +93,17 @@ public class TicketService {
         }
         validateTransition(ticket.getStatus(), nextStatus);
         ticket.setStatus(nextStatus);
+        if ((nextStatus == TicketStatus.RESOLVED || nextStatus == TicketStatus.CLOSED) && (resolutionNotes == null || resolutionNotes.isBlank())) {
+            throw new BadRequestException("Resolution notes are required when resolving or closing tickets.");
+        }
+        if (resolutionNotes != null && !resolutionNotes.isBlank()) {
+            ticket.setResolutionNotes(resolutionNotes.trim());
+        }
         ticket.setUpdatedAt(LocalDateTime.now());
         createNotification(ticket, auth.getName(), "Ticket status changed to " + nextStatus);
-        return ticketRepository.save(ticket);
+        Ticket saved = ticketRepository.save(ticket);
+        createActivity(saved, auth.getName(), "Status changed to " + nextStatus);
+        return saved;
     }
 
     @Transactional
@@ -84,7 +115,9 @@ public class TicketService {
         ticket.setAssignedTechnician(technicianUsername);
         ticket.setUpdatedAt(LocalDateTime.now());
         createNotification(ticket, auth.getName(), "Ticket assigned to " + technicianUsername);
-        return ticketRepository.save(ticket);
+        Ticket saved = ticketRepository.save(ticket);
+        createActivity(saved, auth.getName(), "Assigned technician: " + technicianUsername);
+        return saved;
     }
 
     @Transactional
@@ -96,6 +129,7 @@ public class TicketService {
         comment.setMessage(request.message());
         TicketComment saved = commentRepository.save(comment);
         createNotification(ticket, auth.getName(), "New comment added to ticket.");
+        createActivity(ticket, auth.getName(), "Comment added");
         return saved;
     }
 
@@ -127,6 +161,7 @@ public class TicketService {
             throw new BadRequestException("You can only delete your own comment.");
         }
         commentRepository.delete(comment);
+        createActivity(comment.getTicket(), auth.getName(), "Comment deleted");
     }
 
     @Transactional
@@ -142,11 +177,18 @@ public class TicketService {
             attachment.setImageUrl(url);
             return attachment;
         }).toList();
-        return attachmentRepository.saveAll(newAttachments);
+        List<TicketAttachment> saved = attachmentRepository.saveAll(newAttachments);
+        createActivity(ticket, "system", "Added " + saved.size() + " attachment(s)");
+        return saved;
     }
 
     public List<TicketNotification> getMyNotifications(Authentication auth) {
         return notificationRepository.findByRecipientOrderByCreatedAtDesc(auth.getName());
+    }
+
+    public List<TicketActivity> listTicketActivities(Long ticketId, Authentication auth) {
+        getTicket(ticketId, auth);
+        return activityRepository.findByTicketIdOrderByCreatedAtDesc(ticketId);
     }
 
     private Ticket findTicket(Long id) {
@@ -189,5 +231,13 @@ public class TicketService {
             technician.setRead(false);
             notificationRepository.save(technician);
         }
+    }
+
+    private void createActivity(Ticket ticket, String actor, String action) {
+        TicketActivity activity = new TicketActivity();
+        activity.setTicket(ticket);
+        activity.setActor(actor);
+        activity.setAction(action);
+        activityRepository.save(activity);
     }
 }

@@ -11,7 +11,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,6 +52,9 @@ public class Ticket {
     @Column(length = 100)
     private String assignedTechnician;
 
+    @Column(length = 2000)
+    private String resolutionNotes;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -61,6 +66,9 @@ public class Ticket {
 
     @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TicketAttachment> attachments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<TicketActivity> activities = new ArrayList<>();
 
     @PrePersist
     void prePersist() {
@@ -92,6 +100,8 @@ public class Ticket {
     public void setCreatedUser(String createdUser) { this.createdUser = createdUser; }
     public String getAssignedTechnician() { return assignedTechnician; }
     public void setAssignedTechnician(String assignedTechnician) { this.assignedTechnician = assignedTechnician; }
+    public String getResolutionNotes() { return resolutionNotes; }
+    public void setResolutionNotes(String resolutionNotes) { this.resolutionNotes = resolutionNotes; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
@@ -100,4 +110,25 @@ public class Ticket {
     public void setComments(List<TicketComment> comments) { this.comments = comments; }
     public List<TicketAttachment> getAttachments() { return attachments; }
     public void setAttachments(List<TicketAttachment> attachments) { this.attachments = attachments; }
+    public List<TicketActivity> getActivities() { return activities; }
+    public void setActivities(List<TicketActivity> activities) { this.activities = activities; }
+
+    @Transient
+    public long getAgeHours() {
+        LocalDateTime end = (status == TicketStatus.CLOSED || status == TicketStatus.RESOLVED) ? updatedAt : LocalDateTime.now();
+        return Math.max(0, Duration.between(createdAt, end).toHours());
+    }
+
+    @Transient
+    public Long getResolutionHours() {
+        if (status == TicketStatus.RESOLVED || status == TicketStatus.CLOSED) {
+            return Math.max(0, Duration.between(createdAt, updatedAt).toHours());
+        }
+        return null;
+    }
+
+    @Transient
+    public boolean isSlaBreached() {
+        return (status == TicketStatus.OPEN || status == TicketStatus.IN_PROGRESS) && getAgeHours() > 48;
+    }
 }

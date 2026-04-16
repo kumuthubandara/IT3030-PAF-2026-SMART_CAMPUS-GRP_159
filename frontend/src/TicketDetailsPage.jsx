@@ -15,7 +15,10 @@ export default function TicketDetailsPage() {
   const [error, setError] = useState("");
   const [comment, setComment] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imagePreview, setImagePreview] = useState("");
   const [technician, setTechnician] = useState("tech1");
+  const [resolutionNotes, setResolutionNotes] = useState("");
+  const [activities, setActivities] = useState([]);
   const apiUsername = backendUsernameForUser(user);
 
   const role = String(user?.role ?? "").trim().toLowerCase();
@@ -30,6 +33,8 @@ export default function TicketDetailsPage() {
       setError("");
       const data = await ticketsApi.getTicket(id, user);
       setTicket(data);
+      const activityData = await ticketsApi.listActivities(id, user);
+      setActivities(Array.isArray(activityData) ? activityData : []);
     } catch (e) {
       setError(e.message || "Failed to load ticket.");
     } finally {
@@ -44,7 +49,10 @@ export default function TicketDetailsPage() {
   async function handleStatusChange(nextStatus) {
     try {
       setError("");
-      await ticketsApi.updateStatus(id, nextStatus, user);
+      await ticketsApi.updateStatusWithNotes(id, nextStatus, resolutionNotes, user);
+      if (nextStatus === "RESOLVED" || nextStatus === "CLOSED") {
+        setResolutionNotes("");
+      }
       await loadTicket();
     } catch (e) {
       setError(e.message || "Status update failed.");
@@ -93,6 +101,7 @@ export default function TicketDetailsPage() {
         throw new Error("Maximum 3 images allowed.");
       }
       await ticketsApi.addAttachments(id, [imageUrl], user);
+      setImagePreview("");
       setImageUrl("");
       await loadTicket();
     } catch (e) {
@@ -128,11 +137,28 @@ export default function TicketDetailsPage() {
               <p className="text-xs text-slate-500">
                 Location: {ticket.location} | Assigned: {ticket.assignedTechnician || "Not assigned"}
               </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Age: {ticket.ageHours}h
+                {ticket.resolutionHours != null ? ` | Resolved in: ${ticket.resolutionHours}h` : ""}
+              </p>
+              {ticket.slaBreached ? <p className="mt-1 text-xs font-semibold text-red-300">SLA breached (&gt;48h)</p> : null}
+              {ticket.resolutionNotes ? (
+                <p className="mt-2 rounded-lg bg-emerald-500/10 p-2 text-xs text-emerald-200">
+                  Resolution notes: {ticket.resolutionNotes}
+                </p>
+              ) : null}
             </section>
 
             {canUpdateStatus ? (
               <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
                 <h2 className="mb-3 text-lg font-semibold text-cyan-300">Update Status</h2>
+                <textarea
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  className="mb-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                  rows={2}
+                  placeholder="Resolution notes (required for RESOLVED/CLOSED)"
+                />
                 <div className="flex flex-wrap gap-2">
                   {STATUS_FLOW.map((status) => (
                     <button
@@ -173,7 +199,10 @@ export default function TicketDetailsPage() {
               <form onSubmit={handleAttachment} className="mb-4 flex flex-wrap gap-2">
                 <input
                   value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
+                  onChange={(e) => {
+                    setImageUrl(e.target.value);
+                    setImagePreview(e.target.value);
+                  }}
                   className="min-w-[280px] flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                   placeholder="Paste image URL"
                   required
@@ -182,6 +211,9 @@ export default function TicketDetailsPage() {
                   Add Image
                 </button>
               </form>
+              {imagePreview ? (
+                <img src={imagePreview} alt="Attachment preview" className="mb-4 max-h-52 rounded-lg border border-slate-700 object-cover" />
+              ) : null}
               <div className="grid gap-3 md:grid-cols-3">
                 {(ticket.attachments ?? []).map((attachment) => (
                   <a
@@ -228,6 +260,21 @@ export default function TicketDetailsPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
+              <h2 className="mb-3 text-lg font-semibold text-cyan-300">Activity Timeline</h2>
+              <div className="space-y-2">
+                {activities.map((activity) => (
+                  <div key={activity.id} className="rounded-lg border border-slate-700 bg-slate-950 p-3">
+                    <p className="text-sm text-white">{activity.action}</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      By {activity.actor} at {new Date(activity.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+                {activities.length === 0 ? <p className="text-sm text-slate-400">No activity yet.</p> : null}
               </div>
             </section>
           </div>

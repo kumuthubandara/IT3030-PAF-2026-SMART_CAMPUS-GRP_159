@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -40,8 +41,11 @@ public class TicketController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('USER','ADMIN','TECHNICIAN')")
-    public List<Ticket> listTickets(Authentication authentication) {
-        return service.listTickets(authentication);
+    public List<Ticket> listTickets(Authentication authentication,
+                                    @RequestParam(required = false) TicketStatus status,
+                                    @RequestParam(required = false) TicketPriority priority,
+                                    @RequestParam(required = false) String q) {
+        return service.listTickets(authentication, status, priority, q);
     }
 
     @GetMapping("/{id}")
@@ -55,7 +59,7 @@ public class TicketController {
     public Ticket updateStatus(@PathVariable Long id,
                                @Valid @RequestBody UpdateStatusRequest request,
                                Authentication authentication) {
-        return service.updateStatus(id, request.status(), authentication);
+        return service.updateStatus(id, request.status(), request.resolutionNotes(), authentication);
     }
 
     @PutMapping("/{id}/assign/{technicianUsername}")
@@ -97,5 +101,11 @@ public class TicketController {
     public ResponseEntity<List<TicketAttachment>> addAttachments(@PathVariable Long id,
                                                                  @Valid @RequestBody AttachmentUploadRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.addAttachments(id, request));
+    }
+
+    @GetMapping("/{id}/activities")
+    @PreAuthorize("hasAnyRole('USER','ADMIN','TECHNICIAN')")
+    public List<TicketActivity> listActivities(@PathVariable Long id, Authentication authentication) {
+        return service.listTicketActivities(id, authentication);
     }
 }

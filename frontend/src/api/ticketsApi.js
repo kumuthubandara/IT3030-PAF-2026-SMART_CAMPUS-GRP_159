@@ -47,8 +47,13 @@ async function request(path, { method = "GET", body, user } = {}) {
 }
 
 export const ticketsApi = {
-  listTickets(user) {
-    return request("/api/tickets", { user });
+  listTickets(user, filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.priority) params.set("priority", filters.priority);
+    if (filters.q) params.set("q", filters.q);
+    const query = params.toString();
+    return request(`/api/tickets${query ? `?${query}` : ""}`, { user });
   },
   createTicket(payload, user) {
     return request("/api/tickets", { method: "POST", body: payload, user });
@@ -59,7 +64,14 @@ export const ticketsApi = {
   updateStatus(id, status, user) {
     return request(`/api/tickets/${id}/status`, {
       method: "PUT",
-      body: { status },
+      body: { status, resolutionNotes: null },
+      user,
+    });
+  },
+  updateStatusWithNotes(id, status, resolutionNotes, user) {
+    return request(`/api/tickets/${id}/status`, {
+      method: "PUT",
+      body: { status, resolutionNotes },
       user,
     });
   },
@@ -98,5 +110,8 @@ export const ticketsApi = {
   },
   listNotifications(user) {
     return request("/api/notifications", { user });
+  },
+  listActivities(ticketId, user) {
+    return request(`/api/tickets/${ticketId}/activities`, { user });
   },
 };

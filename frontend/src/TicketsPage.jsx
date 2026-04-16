@@ -6,6 +6,13 @@ import SiteFooter from "./SiteFooter";
 import { ticketsApi } from "./api/ticketsApi";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
+const STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "REJECTED"];
+
+function priorityBadge(priority) {
+  if (priority === "HIGH") return "bg-red-500/20 text-red-200";
+  if (priority === "MEDIUM") return "bg-orange-500/20 text-orange-200";
+  return "bg-green-500/20 text-green-200";
+}
 
 export default function TicketsPage() {
   const { user } = useAuth();
@@ -19,6 +26,7 @@ export default function TicketsPage() {
     priority: "MEDIUM",
     location: "",
   });
+  const [filters, setFilters] = useState({ status: "", priority: "", q: "" });
 
   const role = String(user?.role ?? "").trim().toLowerCase();
   const canCreate = role !== "technician";
@@ -28,7 +36,7 @@ export default function TicketsPage() {
     try {
       setLoading(true);
       setError("");
-      const data = await ticketsApi.listTickets(user);
+      const data = await ticketsApi.listTickets(user, filters);
       setTickets(Array.isArray(data) ? data : []);
     } catch (e) {
       setError(e.message || "Failed to load tickets.");
@@ -39,7 +47,7 @@ export default function TicketsPage() {
 
   useEffect(() => {
     loadTickets();
-  }, [user]);
+  }, [user, filters.status, filters.priority, filters.q]);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -62,6 +70,10 @@ export default function TicketsPage() {
   if (!user) {
     return <Navigate to="/login?redirect=/tickets" replace />;
   }
+
+  const assignedCount = tickets.length;
+  const inProgressCount = tickets.filter((t) => t.status === "IN_PROGRESS").length;
+  const slaRiskCount = tickets.filter((t) => t.slaBreached).length;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100">
@@ -130,6 +142,59 @@ export default function TicketsPage() {
           </section>
         ) : null}
 
+        <section className="mb-6 rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
+          <h2 className="mb-4 text-lg font-semibold text-cyan-300">Search & Filter</h2>
+          <div className="grid gap-3 md:grid-cols-3">
+            <input
+              value={filters.q}
+              onChange={(e) => setFilters((p) => ({ ...p, q: e.target.value }))}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+              placeholder="Search title/category/location"
+            />
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+            >
+              <option value="">All Status</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filters.priority}
+              onChange={(e) => setFilters((p) => ({ ...p, priority: e.target.value }))}
+              className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+            >
+              <option value="">All Priority</option>
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        {role === "technician" || role === "tech" ? (
+          <section className="mb-6 grid gap-3 md:grid-cols-3">
+            <article className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
+              <p className="text-xs text-slate-400">My Assigned Tickets</p>
+              <p className="mt-1 text-2xl font-bold text-cyan-300">{assignedCount}</p>
+            </article>
+            <article className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
+              <p className="text-xs text-slate-400">In Progress</p>
+              <p className="mt-1 text-2xl font-bold text-orange-300">{inProgressCount}</p>
+            </article>
+            <article className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
+              <p className="text-xs text-slate-400">SLA Risk (&gt; 48h)</p>
+              <p className="mt-1 text-2xl font-bold text-red-300">{slaRiskCount}</p>
+            </article>
+          </section>
+        ) : null}
+
         <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
           <h2 className="mb-4 text-lg font-semibold text-cyan-300">Tickets</h2>
           {loading ? <p className="text-slate-300">Loading tickets...</p> : null}
@@ -143,12 +208,19 @@ export default function TicketsPage() {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-semibold text-white">{ticket.title}</p>
-                  <p className="text-xs text-slate-300">
-                    {ticket.priority} | {ticket.status}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs ${priorityBadge(ticket.priority)}`}>
+                      {ticket.priority}
+                    </span>
+                    <p className="text-xs text-slate-300">{ticket.status}</p>
+                  </div>
                 </div>
                 <p className="mt-1 text-sm text-slate-400">{ticket.category}</p>
                 <p className="mt-1 text-xs text-slate-500">Location: {ticket.location}</p>
+                <p className="mt-1 text-xs text-slate-500">Age: {ticket.ageHours}h</p>
+                {ticket.slaBreached ? (
+                  <p className="mt-1 text-xs font-semibold text-red-300">SLA breached</p>
+                ) : null}
               </Link>
             ))}
           </div>

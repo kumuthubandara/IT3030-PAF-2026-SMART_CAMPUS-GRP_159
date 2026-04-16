@@ -1,5 +1,6 @@
 package com.sliit.backend.ticket;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,6 +23,7 @@ public class TicketAttachment {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "ticket_id", nullable = false)
+    @JsonIgnore
     private Ticket ticket;
 
     @Column(nullable = false, length = 500)
