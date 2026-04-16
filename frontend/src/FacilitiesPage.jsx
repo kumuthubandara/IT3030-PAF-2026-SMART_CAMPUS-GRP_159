@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { Link } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
@@ -184,23 +184,52 @@ export default function FacilitiesPage() {
       : isAdmin || isTechnician
         ? adminTechnicianFacilities
         : defaultFacilities;
+
   const canOpenDetailedFacilityCards = isLecturer || isAdmin || isTechnician;
   const isReadOnlyRole = isAdmin || isTechnician;
 
   const variant = isLecturer ? "lecturer" : isStudent ? "student" : isAdmin ? "admin" : "default";
-  /** `lecture-halls` and `computer-labs` share the same building → floor → block flow. */
+
   const [openFacilityModal, setOpenFacilityModal] = useState(null);
   const [activeFacilityBuilding, setActiveFacilityBuilding] = useState(lectureHallBuildings[0].name);
-  /** Which floor’s nested “blocks” popup is open; `buildingKey` is `main` or `new`. */
   const [floorBlocksModalFloor, setFloorBlocksModalFloor] = useState(null);
   const [floorBlocksModalBuilding, setFloorBlocksModalBuilding] = useState(null);
   const [activeFloorBlockTab, setActiveFloorBlockTab] = useState(mainBuildingBlockTabs[0].label);
 
+  const [apiResources, setApiResources] = useState([]);
+  const [loadingResources, setLoadingResources] = useState(true);
+  const [resourceError, setResourceError] = useState("");
+
+  const [typeFilter, setTypeFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [capacityFilter, setCapacityFilter] = useState("");
+
+  useEffect(() => {
+    fetch("http://localhost:8081/api/resources")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch resources");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setApiResources(data);
+        setLoadingResources(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setResourceError("Could not load resources from backend");
+        setLoadingResources(false);
+      });
+  }, []);
+
   const facilityBuildings =
     openFacilityModal === "computer-labs" ? computerLabBuildings : lectureHallBuildings;
+
   const selectedFacilityBuilding =
     facilityBuildings.find((building) => building.name === activeFacilityBuilding) ??
     facilityBuildings[0];
+
   const facilitySpaceKind = openFacilityModal === "computer-labs" ? "lab" : "lecture";
   const mainFloorsForModal = facilitySpaceKind === "lab" ? labMainBuildingFloors : mainBuildingFloors;
   const newFloorsForModal = facilitySpaceKind === "lab" ? labNewBuildingFloors : newBuildingFloors;
@@ -217,6 +246,22 @@ export default function FacilitiesPage() {
 
   const floorModalBlockTabs =
     floorBlocksModalBuilding === "new" ? newBuildingBlockTabs : mainBuildingBlockTabs;
+
+  const filteredResources = apiResources.filter((resource) => {
+    const matchesType = typeFilter
+      ? resource.type?.toLowerCase().includes(typeFilter.toLowerCase())
+      : true;
+
+    const matchesLocation = locationFilter
+      ? resource.location?.toLowerCase().includes(locationFilter.toLowerCase())
+      : true;
+
+    const matchesCapacity = capacityFilter
+      ? Number(resource.capacity) >= Number(capacityFilter)
+      : true;
+
+    return matchesType && matchesLocation && matchesCapacity;
+  });
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
@@ -264,6 +309,7 @@ export default function FacilitiesPage() {
                 </>
               )}
             </p>
+
             {variant === "admin" ? (
               <div className="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-3">
                 <Link
@@ -310,9 +356,7 @@ export default function FacilitiesPage() {
                   <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-violet-300/90">
                     {isReadOnlyRole ? "Reference only · no booking" : facility.availability}
                   </p>
-                  <p className="mt-2 text-xs font-medium text-violet-300">
-                    Open popup →
-                  </p>
+                  <p className="mt-2 text-xs font-medium text-violet-300">Open popup →</p>
                 </button>
               ) : (
                 <article
@@ -358,6 +402,105 @@ export default function FacilitiesPage() {
               )
             ))}
           </div>
+
+          <div className="mt-12 rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-6 shadow-sm">
+            <h3 className="font-heading text-2xl font-semibold text-white">Search & Filter Resources</h3>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Type</label>
+                <input
+                  type="text"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  placeholder="e.g. LAB / ROOM / EQUIPMENT"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Location</label>
+                <input
+                  type="text"
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  placeholder="e.g. Building A"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Minimum Capacity</label>
+                <input
+                  type="number"
+                  value={capacityFilter}
+                  onChange={(e) => setCapacityFilter(e.target.value)}
+                  placeholder="e.g. 20"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-400"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setTypeFilter("");
+                  setLocationFilter("");
+                  setCapacityFilter("");
+                }}
+                className="rounded-full border border-cyan-500/40 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500/10"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-12">
+            <h3 className="font-heading text-2xl font-semibold text-white">
+              Available Resources from Database
+            </h3>
+
+            {loadingResources && (
+              <p className="mt-4 text-sm text-slate-400">Loading resources...</p>
+            )}
+
+            {resourceError && (
+              <p className="mt-4 text-sm text-red-400">{resourceError}</p>
+            )}
+
+            {!loadingResources && !resourceError && (
+              <div className="mt-6 grid gap-5 md:grid-cols-2">
+                {filteredResources.length > 0 ? (
+                  filteredResources.map((resource) => (
+                    <article
+                      key={resource.id}
+                      className="rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-6 shadow-sm transition hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-cyan-500/10"
+                    >
+                      <h4 className="font-heading text-xl font-semibold text-cyan-200">
+                        {resource.name}
+                      </h4>
+                      <p className="mt-3 text-sm leading-relaxed text-slate-400">
+                        Type: {resource.type}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Capacity: {resource.capacity ?? "N/A"}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Location: {resource.location}
+                      </p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-cyan-400">
+                        {resource.status}
+                      </p>
+                    </article>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-400">No matching resources found.</p>
+                )}
+              </div>
+            )}
+          </div>
+
           {openFacilityModal ? (
             <>
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
@@ -548,7 +691,8 @@ export default function FacilitiesPage() {
           ) : null}
         </section>
       </main>
+
       <SiteFooter />
-    </div>
+    </div>git add 
   );
 }
