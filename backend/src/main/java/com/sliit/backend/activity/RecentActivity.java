@@ -12,6 +12,13 @@ public class RecentActivity {
     private Long id;
     private String category;
     private String message;
+
+    /** Requester / actor email for booking & contact events — used to scope student & lecturer feeds. */
+    private String relatedUserEmail;
+
+    /** True for equipment bookings and contact messages — shown on technician dashboards. */
+    private boolean technicianRelevant;
+
     private LocalDateTime createdAt;
 
     public void onCreateDefaults() {
@@ -50,5 +57,21 @@ public class RecentActivity {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getRelatedUserEmail() {
+        return relatedUserEmail;
+    }
+
+    public void setRelatedUserEmail(String relatedUserEmail) {
+        this.relatedUserEmail = relatedUserEmail;
+    }
+
+    public boolean isTechnicianRelevant() {
+        return technicianRelevant;
+    }
+
+    public void setTechnicianRelevant(boolean technicianRelevant) {
+        this.technicianRelevant = technicianRelevant;
     }
 }

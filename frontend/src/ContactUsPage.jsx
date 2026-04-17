@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
+import { apiUrl } from "./apiBase.js";
 
 const contactCards = [
   {
@@ -35,7 +36,6 @@ const responseTimes = [
   { title: "Demo & rollout planning", detail: "2–3 days to schedule a walkthrough." },
 ];
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 function readContactMessages() {
   try {
@@ -145,7 +145,7 @@ export default function ContactUsPage() {
       message: form.message.trim(),
     };
     try {
-      const res = await fetch(`${API_BASE_URL}/api/contact-messages`, {
+      const res = await fetch(apiUrl("/api/contact-messages"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

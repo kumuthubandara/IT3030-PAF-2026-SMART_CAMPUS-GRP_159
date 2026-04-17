@@ -20,6 +20,7 @@ import java.util.Set;
         "com.sliit.backend.resource",
         "com.sliit.backend.contact",
         "com.sliit.backend.activity",
+        "com.sliit.backend.booking",
         "com.sliit.backend.ticket"
 })
 public class BackendApplication {

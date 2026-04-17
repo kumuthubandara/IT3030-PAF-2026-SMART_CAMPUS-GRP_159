@@ -47,9 +47,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/contact-messages/**").permitAll()
-                        .requestMatchers("/api/admin/activities/**").hasRole("ADMIN")
-                        .requestMatchers("/api/tickets/**", "/api/notifications/**").authenticated()
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/admin/activities/**").permitAll()
+                        .requestMatchers("/api/admin/bookings/**").permitAll()
+                        .anyRequest().permitAll()
                 )
                 .httpBasic(Customizer.withDefaults())
                 .build();

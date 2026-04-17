@@ -4,9 +4,11 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
+import AdminManageBookings from "./components/admin-bookings/AdminManageBookings.jsx";
+import { apiUrl } from "./apiBase.js";
+import { recentActivitiesListUrl } from "./services/recentActivitiesApi.js";
 
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 function readContactMessages() {
   try {
@@ -61,8 +63,9 @@ const tiles = [
   },
   {
     id: "manage-bookings",
-    title: "Manage Bookings",
-    description: "Review, approve, or reject booking requests.",
+    title: "Manage Booking",
+    description:
+      "Spaces, rooms, library workspaces, and teaching equipment — approve or reject in one place (All / Students / Equipment tabs).",
     iconBg: "bg-cyan-500/20 text-cyan-400",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -70,7 +73,7 @@ const tiles = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zm3-7h1m4 0h1m-6 4h1m4 0h1m-6 4h8"
+          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
         />
       </svg>
     ),
@@ -183,26 +186,65 @@ function getAudienceOptionsForType(type) {
 }
 
 function getDuplicateMessageForType(type) {
-  if (type === "Lecture Hall") return "This lecture hall already exists";
-  if (type === "Computer Lab") return "This computer lab already exists";
-  if (type === "Library Workspace") return "This workspace already exists";
-  if (type === "Meeting Room") return "This meeting room already exists";
+  if (type === "Lecture Hall") {
+    return "This lecture hall already exists at this building, floor, and block";
+  }
+  if (type === "Computer Lab") {
+    return "This computer lab already exists at this building, floor, and block";
+  }
+  if (type === "Library Workspace") {
+    return "This workspace already exists at this building, floor, and block";
+  }
+  if (type === "Meeting Room") {
+    return "This meeting room already exists at this building, floor, and block";
+  }
   if (isEquipmentType(type)) return "This equipment already exists";
   return "This resource already exists";
 }
 
-function getIdentifierValueForResource(resource) {
-  if (resource.type === "Lecture Hall" || resource.type === "Computer Lab") {
-    return String(resource.hallNumber ?? "").trim().toLowerCase();
+/**
+ * Duplicate key aligned with backend: same hall (or room/workspace) number is allowed in
+ * different building/floor/block; not twice in the same place.
+ */
+function getFacilityDuplicateKey(resource) {
+  if (!resource?.type) return "";
+  const type = String(resource.type).trim();
+
+  if (type === "Lecture Hall" || type === "Computer Lab") {
+    const num = String(resource.hallNumber ?? "").trim().toLowerCase();
+    if (!num) return "";
+    return [
+      normalizeText(type),
+      normalizeText(resource.building),
+      normalizeText(String(resource.floor ?? "")),
+      normalizeText(String(resource.block ?? "")),
+      num,
+    ].join("|");
   }
-  if (resource.type === "Library Workspace") {
-    return String(resource.workspaceNumber ?? "").trim().toLowerCase();
+  if (type === "Library Workspace") {
+    const num = String(resource.workspaceNumber ?? "").trim().toLowerCase();
+    if (!num) return "";
+    return [
+      normalizeText(type),
+      normalizeText(resource.building),
+      normalizeText(String(resource.floor ?? "")),
+      normalizeText(String(resource.block ?? "")),
+      num,
+    ].join("|");
   }
-  if (resource.type === "Meeting Room") {
-    return String(resource.meetingRoomNumber ?? "").trim().toLowerCase();
+  if (type === "Meeting Room") {
+    const num = String(resource.meetingRoomNumber ?? "").trim().toLowerCase();
+    if (!num) return "";
+    return [
+      normalizeText(type),
+      normalizeText(resource.building),
+      normalizeText(String(resource.floor ?? "")),
+      normalizeText(String(resource.block ?? "")),
+      num,
+    ].join("|");
   }
-  if (isEquipmentType(resource.type)) {
-    return String(resource.equipmentName ?? "").trim().toLowerCase();
+  if (isEquipmentType(type)) {
+    return normalizeText(resource.equipmentName);
   }
   return "";
 }
@@ -481,11 +523,12 @@ export default function AdminDashboardPage() {
     availableFrom: "",
     availableTo: "",
     status: "ACTIVE",
+    imageUrl: "",
   });
 
   async function loadContactMessages() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/contact-messages`);
+      const res = await fetch(apiUrl("/api/contact-messages"));
       if (!res.ok) throw new Error("Failed to load");
 
       const data = await res.json();
@@ -513,7 +556,7 @@ export default function AdminDashboardPage() {
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=20`);
+      const res = await fetch(recentActivitiesListUrl(20, user));
       if (!res.ok) throw new Error("Failed to load");
 
       const data = await res.json();
@@ -528,7 +571,7 @@ export default function AdminDashboardPage() {
   async function loadFacilities() {
     try {
       setIsFacilitiesLoading(true);
-      const res = await fetch(`${API_BASE_URL}/api/resources`);
+      const res = await fetch(apiUrl("/api/resources"));
       if (!res.ok) throw new Error("Failed to load resources");
       const data = await res.json();
       setFacilities(Array.isArray(data) ? data : []);
@@ -574,7 +617,7 @@ export default function AdminDashboardPage() {
       void loadRecentActivities();
     }, 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [user]);
 
   if (!isAdmin) {
     return <Navigate to="/dashboard" replace />;
@@ -728,13 +771,14 @@ export default function AdminDashboardPage() {
       availableFrom: facilityForm.availableFrom || null,
       availableTo: facilityForm.availableTo || null,
       status: facilityForm.status,
+      imageUrl: String(facilityForm.imageUrl ?? "").trim() || null,
     };
 
-    const identifierValue = getIdentifierValueForResource(facilityPayload);
+    const duplicateKey = getFacilityDuplicateKey(facilityPayload);
     const hasTypeIdentifierDuplicate = facilities.some((resource) => {
       if (resource.id === editingFacilityId) return false;
       if (normalizeText(resource.type) !== normalizeText(facilityPayload.type)) return false;
-      return getIdentifierValueForResource(resource) === identifierValue && identifierValue !== "";
+      return getFacilityDuplicateKey(resource) === duplicateKey && duplicateKey !== "";
     });
     if (hasTypeIdentifierDuplicate) {
       const duplicateMessage = getDuplicateMessageForType(facilityPayload.type);
@@ -776,8 +820,8 @@ export default function AdminDashboardPage() {
 
     try {
       const url = editingFacilityId
-        ? `${API_BASE_URL}/api/resources/${editingFacilityId}`
-        : `${API_BASE_URL}/api/resources`;
+        ? apiUrl(`/api/resources/${editingFacilityId}`)
+        : apiUrl("/api/resources");
       const method = editingFacilityId ? "PUT" : "POST";
       const res = await fetch(url, {
         method,
@@ -827,6 +871,7 @@ export default function AdminDashboardPage() {
       availableFrom: "",
       availableTo: "",
       status: "ACTIVE",
+      imageUrl: "",
     });
     setFacilityFieldErrors({});
     setEditingFacilityId(null);
@@ -862,6 +907,7 @@ export default function AdminDashboardPage() {
       availableFrom: facility.availableFrom ?? "",
       availableTo: facility.availableTo ?? "",
       status: facility.status,
+      imageUrl: facility.imageUrl ?? facility.image_url ?? "",
     });
     setFacilitySaveMessage("");
     setFacilitySaveMessageType("success");
@@ -870,7 +916,7 @@ export default function AdminDashboardPage() {
 
   async function handleFacilityDelete(id) {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/resources/${id}`, {
+      const res = await fetch(apiUrl(`/api/resources/${id}`), {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete");
@@ -1015,7 +1061,7 @@ export default function AdminDashboardPage() {
             aria-modal="true"
             aria-labelledby="admin-dashboard-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-cyan-500/20 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" ? "max-w-2xl" : "max-w-4xl"
+              modal === "settings" || modal === "manage-bookings" ? "max-w-2xl" : "max-w-4xl"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-cyan-500/15 pb-4">
@@ -1066,8 +1112,8 @@ export default function AdminDashboardPage() {
                     page is <strong className="text-amber-200/90">read-only for admins</strong>—only{" "}
                     <strong className="text-slate-200">students</strong> and{" "}
                     <strong className="text-slate-200">lecturers</strong> can book from there. Use{" "}
-                    <strong className="text-slate-200">Manage Bookings</strong> to approve or reject
-                    requests.
+                    <strong className="text-slate-200">Manage Booking</strong> to approve or reject requests (all types
+                    or equipment-only via the in-panel tabs).
                   </p>
 
                   <div className="pt-1">
@@ -1466,6 +1512,24 @@ export default function AdminDashboardPage() {
                         ) : null}
                       </label>
 
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-slate-300">
+                          Photo URL <span className="text-slate-500">(optional)</span>
+                        </span>
+                        <input
+                          type="url"
+                          name="imageUrl"
+                          value={facilityForm.imageUrl}
+                          onChange={handleFacilityInputChange}
+                          placeholder="https://… (shown when someone scans the booking QR)"
+                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+                        />
+                        <p className="text-xs text-slate-500">
+                          Use a direct link to an image (HTTPS). It appears on the public check-in page after scanning
+                          the QR code for an approved booking.
+                        </p>
+                      </label>
+
                       <div className="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-4">
                         <button
                           type="submit"
@@ -1563,17 +1627,7 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
-              {modal === "manage-bookings" && (
-                <div className="space-y-4 text-sm text-slate-400">
-                  <p>
-                    Approve or reject booking requests, resolve conflicts, and enforce policy. Wire
-                    this panel to your scheduling service when APIs are available.
-                  </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No pending approvals (demo).
-                  </div>
-                </div>
-              )}
+              {modal === "manage-bookings" && <AdminManageBookings user={user} />}
 
               {modal === "maintenance" && (
                 <div className="space-y-4 text-sm text-slate-400">

@@ -48,6 +48,10 @@ public class Resource {
     @Field("available_to")
     private LocalTime availableTo;
 
+    /** Optional HTTPS URL shown on QR check-in verification (room/venue photo). */
+    @Field("image_url")
+    private String imageUrl;
+
     public Resource() {
     }
 
@@ -212,5 +216,13 @@ public class Resource {
 
     public void setAvailableTo(LocalTime availableTo) {
         this.availableTo = availableTo;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

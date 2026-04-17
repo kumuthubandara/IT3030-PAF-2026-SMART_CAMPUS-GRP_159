@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/activities")
-@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
+@CrossOrigin(origins = "*")
 public class RecentActivityController {
 
     private final RecentActivityService service;
@@ -19,8 +19,18 @@ public class RecentActivityController {
         this.service = service;
     }
 
+    /**
+     * @param email  signed-in user email (for student / lecturer scoped feeds)
+     * @param role   student | lecturer | technician | admin — controls filtering
+     */
     @GetMapping
-    public List<RecentActivity> list(@RequestParam(defaultValue = "20") int limit) {
+    public List<RecentActivity> list(
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String role) {
+        if (role != null && !role.isBlank()) {
+            return service.latestForViewer(limit, role, email);
+        }
         return service.latest(limit);
     }
 }
