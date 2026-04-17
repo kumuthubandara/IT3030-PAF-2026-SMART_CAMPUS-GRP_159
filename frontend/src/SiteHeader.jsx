@@ -1,7 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
-import { apiGet } from "./api";
 
 const NAV = [
   { label: "Home", to: "/" },
@@ -21,45 +19,6 @@ export default function SiteHeader() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
-  const displayRole = String(user?.role || "user")
-    .replaceAll("_", " ")
-    .toLowerCase();
-
-  const authHeaders = useMemo(() => {
-    if (!user?.email) return {};
-    return {
-      "X-User-Email": user.email,
-      "X-User-Role": String(user.role || "USER").toUpperCase(),
-    };
-  }, [user]);
-
-  useEffect(() => {
-    let ignore = false;
-    async function loadUnreadCount() {
-      if (!user?.email) {
-        setUnreadCount(0);
-        return;
-      }
-      try {
-        const data = await apiGet(
-          `/api/notifications/unread-count?userEmail=${encodeURIComponent(user.email)}`,
-          authHeaders
-        );
-        if (!ignore) {
-          setUnreadCount(Number(data?.unreadCount || 0));
-        }
-      } catch {
-        if (!ignore) {
-          setUnreadCount(0);
-        }
-      }
-    }
-    loadUnreadCount();
-    return () => {
-      ignore = true;
-    };
-  }, [user, authHeaders, pathname]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-cyan-500/20 bg-slate-950/95 backdrop-blur">
@@ -95,7 +54,7 @@ export default function SiteHeader() {
             id="notifications-bell"
             to="/notifications#notifications"
             aria-label="View notifications"
-            className={`relative rounded-full p-2 transition sm:p-2.5 ${
+            className={`rounded-full p-2 transition sm:p-2.5 ${
               isActivePath(pathname, "/notifications")
                 ? "text-cyan-400"
                 : "text-slate-400 hover:bg-slate-800/80 hover:text-cyan-300"
@@ -109,16 +68,11 @@ export default function SiteHeader() {
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
               />
             </svg>
-            {unreadCount > 0 ? (
-              <span className="absolute right-1 top-1 min-w-[18px] rounded-full bg-cyan-400 px-1 text-center text-[10px] font-bold text-slate-950">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            ) : null}
           </Link>
           {user ? (
             <>
-              <span className="hidden rounded-full border border-slate-700/80 bg-slate-900/90 px-3 py-1 text-xs text-slate-300 md:inline">
-                Signed in as <span className="font-semibold text-cyan-300">{user.name}</span> ({displayRole})
+              <span className="hidden max-w-[100px] truncate text-xs text-slate-400 sm:inline sm:max-w-[140px]">
+                {user.name}
               </span>
               <button
                 type="button"
