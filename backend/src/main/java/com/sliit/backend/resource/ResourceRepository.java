@@ -1,9 +1,10 @@
 package com.sliit.backend.resource;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
+
 import java.util.List;
 
-public interface ResourceRepository extends JpaRepository<Resource, Long> {
+public interface ResourceRepository extends MongoRepository<Resource, String> {
 
     List<Resource> findByTypeContainingIgnoreCase(String type);
 
