@@ -22,9 +22,6 @@ export default function SiteHeader() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-  const displayRole = String(user?.role || "user")
-    .replaceAll("_", " ")
-    .toLowerCase();
 
   const authHeaders = useMemo(() => {
     if (!user?.email) return {};
@@ -117,8 +114,8 @@ export default function SiteHeader() {
           </Link>
           {user ? (
             <>
-              <span className="hidden rounded-full border border-slate-700/80 bg-slate-900/90 px-3 py-1 text-xs text-slate-300 md:inline">
-                Signed in as <span className="font-semibold text-cyan-300">{user.name}</span> ({displayRole})
+              <span className="hidden max-w-[100px] truncate text-xs text-slate-400 sm:inline sm:max-w-[140px]">
+                {user.name}
               </span>
               <button
                 type="button"
