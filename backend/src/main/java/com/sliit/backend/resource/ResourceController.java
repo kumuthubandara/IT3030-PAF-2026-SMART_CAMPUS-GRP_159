@@ -3,6 +3,7 @@ package com.sliit.backend.resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.List;
 
 @RestController
@@ -60,5 +61,10 @@ public class ResourceController {
     @GetMapping("/search/capacity")
     public ResponseEntity<List<Resource>> searchByMinimumCapacity(@RequestParam Integer capacity) {
         return ResponseEntity.ok(resourceService.searchByMinimumCapacity(capacity));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<Map<String, String>> handleValidationError(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest().body(Map.of("message", ex.getMessage()));
     }
 }

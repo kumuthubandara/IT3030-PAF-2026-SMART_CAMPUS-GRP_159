@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 
@@ -21,6 +22,11 @@ const topics = [
 ];
 
 export default function MaintenancePage() {
+  const { user } = useAuth();
+  if (!user) {
+    return <Navigate to="/login?redirect=/maintenance" replace />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
       <SiteHeader />

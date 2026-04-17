@@ -20,6 +20,26 @@ public class Resource {
 
     private String location;
 
+    private String building;
+
+    private String floor;
+
+    private String block;
+
+    @Field("hall_number")
+    private String hallNumber;
+
+    @Field("meeting_room_number")
+    private String meetingRoomNumber;
+
+    @Field("workspace_number")
+    private String workspaceNumber;
+
+    @Field("equipment_name")
+    private String equipmentName;
+
+    private String audience;
+
     private String status;
 
     @Field("available_from")
@@ -37,6 +57,14 @@ public class Resource {
             String type,
             Integer capacity,
             String location,
+            String building,
+            String floor,
+            String block,
+            String hallNumber,
+            String meetingRoomNumber,
+            String workspaceNumber,
+            String equipmentName,
+            String audience,
             String status,
             LocalTime availableFrom,
             LocalTime availableTo) {
@@ -45,6 +73,14 @@ public class Resource {
         this.type = type;
         this.capacity = capacity;
         this.location = location;
+        this.building = building;
+        this.floor = floor;
+        this.block = block;
+        this.hallNumber = hallNumber;
+        this.meetingRoomNumber = meetingRoomNumber;
+        this.workspaceNumber = workspaceNumber;
+        this.equipmentName = equipmentName;
+        this.audience = audience;
         this.status = status;
         this.availableFrom = availableFrom;
         this.availableTo = availableTo;
@@ -96,6 +132,70 @@ public class Resource {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getBuilding() {
+        return building;
+    }
+
+    public void setBuilding(String building) {
+        this.building = building;
+    }
+
+    public String getFloor() {
+        return floor;
+    }
+
+    public void setFloor(String floor) {
+        this.floor = floor;
+    }
+
+    public String getBlock() {
+        return block;
+    }
+
+    public void setBlock(String block) {
+        this.block = block;
+    }
+
+    public String getHallNumber() {
+        return hallNumber;
+    }
+
+    public void setHallNumber(String hallNumber) {
+        this.hallNumber = hallNumber;
+    }
+
+    public String getAudience() {
+        return audience;
+    }
+
+    public void setAudience(String audience) {
+        this.audience = audience;
+    }
+
+    public String getMeetingRoomNumber() {
+        return meetingRoomNumber;
+    }
+
+    public void setMeetingRoomNumber(String meetingRoomNumber) {
+        this.meetingRoomNumber = meetingRoomNumber;
+    }
+
+    public String getWorkspaceNumber() {
+        return workspaceNumber;
+    }
+
+    public void setWorkspaceNumber(String workspaceNumber) {
+        this.workspaceNumber = workspaceNumber;
+    }
+
+    public String getEquipmentName() {
+        return equipmentName;
+    }
+
+    public void setEquipmentName(String equipmentName) {
+        this.equipmentName = equipmentName;
     }
 
     public LocalTime getAvailableFrom() {

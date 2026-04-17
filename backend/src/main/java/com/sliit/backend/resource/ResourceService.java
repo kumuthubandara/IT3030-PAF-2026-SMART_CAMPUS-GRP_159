@@ -3,6 +3,7 @@ package com.sliit.backend.resource;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class ResourceService {
@@ -24,6 +25,7 @@ public class ResourceService {
 
     public Resource createResource(Resource resource) {
         resource.setId(null);
+        validateUniqueResource(resource, null);
         return resourceRepository.save(resource);
     }
 
@@ -34,10 +36,19 @@ public class ResourceService {
         existingResource.setType(updatedResource.getType());
         existingResource.setCapacity(updatedResource.getCapacity());
         existingResource.setLocation(updatedResource.getLocation());
+        existingResource.setBuilding(updatedResource.getBuilding());
+        existingResource.setFloor(updatedResource.getFloor());
+        existingResource.setBlock(updatedResource.getBlock());
+        existingResource.setHallNumber(updatedResource.getHallNumber());
+        existingResource.setMeetingRoomNumber(updatedResource.getMeetingRoomNumber());
+        existingResource.setWorkspaceNumber(updatedResource.getWorkspaceNumber());
+        existingResource.setEquipmentName(updatedResource.getEquipmentName());
+        existingResource.setAudience(updatedResource.getAudience());
         existingResource.setStatus(updatedResource.getStatus());
         existingResource.setAvailableFrom(updatedResource.getAvailableFrom());
         existingResource.setAvailableTo(updatedResource.getAvailableTo());
 
+        validateUniqueResource(existingResource, id);
         return resourceRepository.save(existingResource);
     }
 
@@ -60,5 +71,93 @@ public class ResourceService {
 
     public List<Resource> searchByMinimumCapacity(Integer capacity) {
         return resourceRepository.findByCapacityGreaterThanEqual(capacity);
+    }
+
+    private void validateUniqueResource(Resource resource, String currentId) {
+        String type = normalize(resource.getType());
+        if (type.isEmpty()) return;
+
+        if ("lecture hall".equals(type)) {
+            String hallNumber = requirePositiveNumber(resource.getHallNumber(), "Hall number is required.");
+            boolean exists = currentId == null
+                    ? resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCase("Lecture Hall", hallNumber)
+                    : resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndIdNot("Lecture Hall", hallNumber, currentId);
+            if (exists) {
+                throw new IllegalArgumentException("This lecture hall already exists");
+            }
+            return;
+        }
+
+        if ("computer lab".equals(type)) {
+            String hallNumber = requirePositiveNumber(resource.getHallNumber(), "Lab number is required.");
+            boolean exists = currentId == null
+                    ? resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCase("Computer Lab", hallNumber)
+                    : resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndIdNot("Computer Lab", hallNumber, currentId);
+            if (exists) {
+                throw new IllegalArgumentException("This computer lab already exists");
+            }
+            return;
+        }
+
+        if ("meeting room".equals(type)) {
+            String roomNumber = requirePositiveNumber(resource.getMeetingRoomNumber(), "Meeting Room Number is required.");
+            boolean exists = currentId == null
+                    ? resourceRepository.existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCase("Meeting Room", roomNumber)
+                    : resourceRepository.existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCaseAndIdNot("Meeting Room", roomNumber, currentId);
+            if (exists) {
+                throw new IllegalArgumentException("This meeting room already exists");
+            }
+            return;
+        }
+
+        if ("library workspace".equals(type)) {
+            String workspaceNumber = requirePositiveNumber(resource.getWorkspaceNumber(), "Workspace Number is required.");
+            boolean exists = currentId == null
+                    ? resourceRepository.existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCase("Library Workspace", workspaceNumber)
+                    : resourceRepository.existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCaseAndIdNot(
+                            "Library Workspace",
+                            workspaceNumber,
+                            currentId
+                    );
+            if (exists) {
+                throw new IllegalArgumentException("This workspace already exists");
+            }
+            return;
+        }
+
+        if ("equipment".equals(type) || "equipments".equals(type)) {
+            String equipmentName = requireNonBlank(resource.getEquipmentName(), "Equipment Name is required.");
+            boolean exists = currentId == null
+                    ? resourceRepository.existsByTypeIgnoreCaseAndEquipmentNameIgnoreCase("Equipment", equipmentName)
+                    || resourceRepository.existsByTypeIgnoreCaseAndEquipmentNameIgnoreCase("Equipments", equipmentName)
+                    : resourceRepository.existsByTypeIgnoreCaseAndEquipmentNameIgnoreCaseAndIdNot("Equipment", equipmentName, currentId)
+                    || resourceRepository.existsByTypeIgnoreCaseAndEquipmentNameIgnoreCaseAndIdNot("Equipments", equipmentName, currentId);
+            if (exists) {
+                throw new IllegalArgumentException("This equipment already exists");
+            }
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String requireNonBlank(String value, String message) {
+        String normalized = value == null ? "" : value.trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException(message);
+        }
+        return normalized;
+    }
+
+    private String requirePositiveNumber(String value, String message) {
+        String normalized = requireNonBlank(value, message);
+        try {
+            int parsed = Integer.parseInt(normalized);
+            if (parsed < 1) throw new NumberFormatException();
+            return String.valueOf(parsed);
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException(message);
+        }
     }
 }
