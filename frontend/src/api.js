@@ -37,10 +37,13 @@ export async function apiPost(path, data, headers = {}) {
   return parseResponse(response);
 }
 
-export async function apiPatch(path, headers = {}) {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    method: "PATCH",
-    headers,
-  });
+export async function apiPatch(path, headers = {}, body = undefined) {
+  const mergedHeaders = { ...headers };
+  const init = { method: "PATCH", headers: mergedHeaders };
+  if (body !== undefined) {
+    mergedHeaders["Content-Type"] = "application/json";
+    init.body = JSON.stringify(body);
+  }
+  const response = await fetch(`${getApiBaseUrl()}${path}`, init);
   return parseResponse(response);
 }

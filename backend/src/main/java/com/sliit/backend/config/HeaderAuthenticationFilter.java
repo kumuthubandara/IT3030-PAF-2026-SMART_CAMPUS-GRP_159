@@ -25,9 +25,15 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
         String email = request.getHeader("X-User-Email");
         String role = request.getHeader("X-User-Role");
 
-        if (email != null && !email.isBlank()
-                && role != null && !role.isBlank()
-                && SecurityContextHolder.getContext().getAuthentication() == null) {
+        /*
+         * For /api/** only: when headers are present, always set the security context from them.
+         * Otherwise an anonymous or OAuth session principal would win and admin list calls return 403.
+         */
+        if (request.getRequestURI().startsWith("/api/")
+                && email != null
+                && !email.isBlank()
+                && role != null
+                && !role.isBlank()) {
             String normalizedRole = role.trim().toUpperCase();
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                     email.trim().toLowerCase(),

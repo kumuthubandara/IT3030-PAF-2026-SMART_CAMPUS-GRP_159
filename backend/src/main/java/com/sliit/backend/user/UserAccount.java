@@ -13,6 +13,11 @@ public class UserAccount {
     private String email;
     private String name;
     private UserRole role;
+    /**
+     * Null = legacy accounts (treated as ACTIVE for sign-in).
+     * New registrations use PENDING until an administrator approves.
+     */
+    private AccountStatus accountStatus;
     private String provider;
     private String providerId;
     private String passwordHash;
@@ -49,6 +54,21 @@ public class UserAccount {
 
     public void setRole(UserRole role) {
         this.role = role;
+    }
+
+    public AccountStatus getAccountStatus() {
+        return accountStatus;
+    }
+
+    public void setAccountStatus(AccountStatus accountStatus) {
+        this.accountStatus = accountStatus;
+    }
+
+    /**
+     * Pending registrations cannot sign in until approved.
+     */
+    public boolean canLogin() {
+        return accountStatus != AccountStatus.PENDING;
     }
 
     public String getProvider() {

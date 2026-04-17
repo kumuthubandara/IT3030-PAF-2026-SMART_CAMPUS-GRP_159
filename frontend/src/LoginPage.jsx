@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [infoMessage, setInfoMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -22,23 +23,53 @@ export default function LoginPage() {
   useEffect(() => {
     const oauth = searchParams.get("oauth");
     const emailFromOAuth = searchParams.get("email");
+    // Avoid replacing an existing session with stale ?oauth=success query params.
+    if (oauth === "success" && user) {
+      return;
+    }
     if (oauth === "error") {
       setError(searchParams.get("message") || "Google sign-in failed.");
+      setInfoMessage("");
+      return;
+    }
+    if (oauth === "pending") {
+      setInfoMessage(
+        emailFromOAuth
+          ? `Google sign-in completed for ${emailFromOAuth}, but an administrator must approve your account before you can use the app.`
+          : "Your account is waiting for administrator approval before you can sign in."
+      );
+      setError("");
       return;
     }
     if (oauth !== "success" || !emailFromOAuth) return;
     login({
       name: searchParams.get("name") || emailFromOAuth.split("@")[0],
       email: emailFromOAuth,
-      role: searchParams.get("role") || "user",
+      role: searchParams.get("role") || "student",
       authProvider: "google",
+      accountStatus: (searchParams.get("accountStatus") || "active").toLowerCase(),
     });
     navigate("/dashboard", { replace: true });
-  }, [login, navigate, searchParams]);
+  }, [login, navigate, searchParams, user]);
+
+  useEffect(() => {
+    const registered = searchParams.get("registered");
+    const reason = searchParams.get("reason");
+    if (registered === "pending") {
+      setInfoMessage(
+        "Registration received. An administrator will approve your account; you can sign in after approval."
+      );
+      setError("");
+    } else if (reason === "pending") {
+      setInfoMessage("Your account is still waiting for administrator approval.");
+      setError("");
+    }
+  }, [searchParams]);
 
   function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setInfoMessage("");
     setIsSubmitting(true);
     apiPost("/api/auth/login", {
       email: email.trim(),
@@ -50,6 +81,7 @@ export default function LoginPage() {
           email: data.email,
           role: data.role,
           authProvider: data.authProvider || "local",
+          accountStatus: String(data.accountStatus || "active").toLowerCase(),
         });
         const next = searchParams.get("redirect") || "/dashboard";
         navigate(next, { replace: true });
@@ -83,7 +115,42 @@ export default function LoginPage() {
             Sign in with your Smart Campus account, or continue with Google.
           </p>
 
+          <details className="mt-5 rounded-xl border border-slate-600/60 bg-slate-950/50 px-4 py-3 text-left">
+            <summary className="cursor-pointer text-sm font-medium text-amber-200/95">
+              Administrator sign-in (campus staff)
+            </summary>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-slate-400">
+              <li>
+                In the <code className="rounded bg-slate-800 px-1 text-slate-200">backend</code> folder, set{" "}
+                <code className="rounded bg-slate-800 px-1 text-slate-200">BOOTSTRAP_ADMIN_EMAIL</code> and{" "}
+                <code className="rounded bg-slate-800 px-1 text-slate-200">BOOTSTRAP_ADMIN_PASSWORD</code> in{" "}
+                <code className="rounded bg-slate-800 px-1 text-slate-200">.env</code> (see{" "}
+                <code className="rounded bg-slate-800 px-1 text-slate-200">.env.example</code>).
+              </li>
+              <li>
+                Run the backend from that folder (<code className="rounded bg-slate-800 px-1">cd backend</code> then{" "}
+                <code className="rounded bg-slate-800 px-1">.\mvnw.cmd spring-boot:run</code>) so{" "}
+                <code className="rounded bg-slate-800 px-1">.env</code> loads. Restart after changing{" "}
+                <code className="rounded bg-slate-800 px-1">.env</code>.
+              </li>
+              <li>
+                Sign in below with <strong className="text-slate-300">that same email and password</strong>. You
+                should land on the Admin dashboard. If you previously signed up as a student with the same email,
+                the server promotes that pending account to administrator on startup.
+              </li>
+              <li className="text-slate-500">
+                After first login, remove <code className="rounded bg-slate-800 px-1">BOOTSTRAP_ADMIN_PASSWORD</code>{" "}
+                from <code className="rounded bg-slate-800 px-1">.env</code> for security.
+              </li>
+            </ol>
+          </details>
+
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            {infoMessage ? (
+              <p className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-sm text-cyan-100">
+                {infoMessage}
+              </p>
+            ) : null}
             {error ? (
               <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
                 {error}

@@ -101,7 +101,7 @@ export default function ContactUsPage() {
   const role = String(user?.role ?? "")
     .trim()
     .toLowerCase();
-  const isBlockedRole = role === "administrator" || role === "admin" || role === "technician" || role === "tech";
+  const isBlockedRole = role === "administrator" || role === "technician";
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
@@ -246,7 +246,7 @@ export default function ContactUsPage() {
                   What to include in your message
                 </h3>
                 <ul className="mt-4 list-inside list-disc space-y-2 text-sm text-slate-400">
-                  <li>Your role on campus (student, lecturer, admin, technician).</li>
+                  <li>Your role on campus (student, lecturer, administrator, technician).</li>
                   <li>Whether the problem is booking, maintenance, login, or something else.</li>
                   <li>Browser and approximate time if something failed in the demo.</li>
                   <li>Any reference codes or screenshots if you have them.</li>

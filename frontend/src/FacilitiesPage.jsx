@@ -192,8 +192,8 @@ export default function FacilitiesPage() {
 
   const isLecturer = role === "lecturer";
   const isStudent = role === "student";
-  const isAdmin = role === "administrator" || role === "admin";
-  const isTechnician = role === "technician" || role === "tech";
+  const isAdmin = role === "administrator";
+  const isTechnician = role === "technician";
 
   const facilities = isLecturer
     ? lecturerFacilities

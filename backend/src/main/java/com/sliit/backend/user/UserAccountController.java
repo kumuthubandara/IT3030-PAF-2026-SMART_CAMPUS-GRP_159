@@ -22,6 +22,22 @@ public class UserAccountController {
         return ResponseEntity.ok(userAccountService.getAllUsers());
     }
 
+    @GetMapping("/pending")
+    public ResponseEntity<List<UserAccount>> listPending() {
+        return ResponseEntity.ok(userAccountService.findPendingRegistrations());
+    }
+
+    @PatchMapping("/{email}/approve")
+    public ResponseEntity<UserAccount> approve(@PathVariable String email) {
+        return ResponseEntity.ok(userAccountService.approveRegistration(email));
+    }
+
+    @DeleteMapping("/{email}/pending")
+    public ResponseEntity<Void> rejectPending(@PathVariable String email) {
+        userAccountService.rejectPendingRegistration(email);
+        return ResponseEntity.noContent().build();
+    }
+
     @PatchMapping("/{email}/role")
     public ResponseEntity<UserAccount> updateRole(
             @PathVariable String email,

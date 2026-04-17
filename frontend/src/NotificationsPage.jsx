@@ -40,7 +40,7 @@ export default function NotificationsPage() {
     if (!user?.email) return {};
     return {
       "X-User-Email": user.email,
-      "X-User-Role": String(user.role || "USER").toUpperCase(),
+      "X-User-Role": String(user.role || "student").toUpperCase(),
     };
   }, [user]);
 

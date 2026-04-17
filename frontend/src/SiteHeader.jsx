@@ -22,7 +22,7 @@ export default function SiteHeader() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-  const displayRole = String(user?.role || "user")
+  const displayRole = String(user?.role || "student")
     .replaceAll("_", " ")
     .toLowerCase();
 
@@ -30,7 +30,7 @@ export default function SiteHeader() {
     if (!user?.email) return {};
     return {
       "X-User-Email": user.email,
-      "X-User-Role": String(user.role || "USER").toUpperCase(),
+      "X-User-Role": String(user.role || "student").toUpperCase(),
     };
   }, [user]);
 

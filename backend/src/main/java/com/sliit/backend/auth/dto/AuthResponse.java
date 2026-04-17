@@ -5,12 +5,15 @@ public class AuthResponse {
     private String email;
     private String role;
     private String authProvider;
+    /** "active" or "pending" — pending accounts cannot sign in until an administrator approves. */
+    private String accountStatus;
 
-    public AuthResponse(String name, String email, String role, String authProvider) {
+    public AuthResponse(String name, String email, String role, String authProvider, String accountStatus) {
         this.name = name;
         this.email = email;
         this.role = role;
         this.authProvider = authProvider;
+        this.accountStatus = accountStatus;
     }
 
     public String getName() {
@@ -27,5 +30,9 @@ public class AuthResponse {
 
     public String getAuthProvider() {
         return authProvider;
+    }
+
+    public String getAccountStatus() {
+        return accountStatus;
     }
 }

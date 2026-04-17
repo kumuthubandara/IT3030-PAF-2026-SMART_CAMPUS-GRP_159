@@ -37,11 +37,22 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                 principal.getAttributes(),
                 oauthToken.getAuthorizedClientRegistrationId());
 
+        if (!user.canLogin()) {
+            String redirectUrl = UriComponentsBuilder.fromUriString(frontendOAuthSuccessUrl)
+                    .queryParam("oauth", "pending")
+                    .queryParam("email", user.getEmail())
+                    .build()
+                    .toUriString();
+            response.sendRedirect(redirectUrl);
+            return;
+        }
+
         String redirectUrl = UriComponentsBuilder.fromUriString(frontendOAuthSuccessUrl)
                 .queryParam("oauth", "success")
                 .queryParam("email", user.getEmail())
                 .queryParam("name", user.getName())
                 .queryParam("role", user.getRole().name().toLowerCase())
+                .queryParam("accountStatus", "active")
                 .build()
                 .toUriString();
         response.sendRedirect(redirectUrl);

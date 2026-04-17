@@ -11,6 +11,7 @@ export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [campusRole, setCampusRole] = useState("student");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,13 +39,20 @@ export default function SignUpPage() {
       name: name.trim(),
       email: email.trim(),
       password,
+      campusRole,
     })
       .then((data) => {
+        const status = String(data.accountStatus || "active").toLowerCase();
+        if (status === "pending") {
+          navigate("/login?registered=pending", { replace: true });
+          return;
+        }
         login({
           name: data.name,
           email: data.email,
           role: data.role,
           authProvider: data.authProvider || "local",
+          accountStatus: status,
         });
         navigate("/dashboard", { replace: true });
       })
@@ -74,7 +82,8 @@ export default function SignUpPage() {
         <div className="rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-8 shadow-xl shadow-cyan-950/30">
           <h1 className="font-heading text-2xl font-bold text-white">Create account</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Create your Smart Campus account to manage bookings, tickets, and notifications.
+            Create your Smart Campus account. An administrator must approve new accounts before you can sign
+            in (unless your email is on the campus auto-approve list).
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -105,6 +114,22 @@ export default function SignUpPage() {
                 placeholder="you@university.edu"
                 required
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-300">Campus role</label>
+              <select
+                value={campusRole}
+                onChange={(e) => setCampusRole(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-600/80 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none ring-cyan-500/40 focus:ring-2"
+                required
+              >
+                <option value="student">Student</option>
+                <option value="lecturer">Lecturer</option>
+                <option value="technician">Technician</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                Administrator accounts are assigned only by an existing administrator after approval.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300">Password</label>

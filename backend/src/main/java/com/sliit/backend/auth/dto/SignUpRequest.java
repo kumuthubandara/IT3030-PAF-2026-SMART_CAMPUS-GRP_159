@@ -2,6 +2,7 @@ package com.sliit.backend.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class SignUpRequest {
@@ -16,6 +17,13 @@ public class SignUpRequest {
     @NotBlank
     @Size(min = 6, max = 64)
     private String password;
+
+    /**
+     * Campus role to assign after approval. Administrator accounts cannot be self-registered.
+     */
+    @NotBlank
+    @Pattern(regexp = "(?i)^(student|lecturer|technician)$", message = "Role must be student, lecturer, or technician")
+    private String campusRole;
 
     public String getName() {
         return name;
@@ -39,5 +47,13 @@ public class SignUpRequest {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getCampusRole() {
+        return campusRole;
+    }
+
+    public void setCampusRole(String campusRole) {
+        this.campusRole = campusRole;
     }
 }

@@ -5,6 +5,8 @@ import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+const RESOURCE_API_URL = `${API_BASE_URL}/api/resources`;
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
 
 
@@ -143,12 +145,18 @@ export default function AdminDashboardPage() {
   const { user } = useAuth();
   const displayName = user?.name || "Administrator";
   const role = String(user?.role ?? "").trim().toLowerCase();
-  const isAdmin = role === "administrator" || role === "admin";
+  const isAdmin = role === "administrator";
 
   const [modal, setModal] = useState(null);
   const [contactMessages, setContactMessages] = useState(() => readContactMessages());
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState("");
+  const [roleSavingEmail, setRoleSavingEmail] = useState("");
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [pendingActionEmail, setPendingActionEmail] = useState("");
 
   const [facilityResources, setFacilityResources] = useState([]);
   const [facilityLoading, setFacilityLoading] = useState(false);
@@ -164,6 +172,108 @@ export default function AdminDashboardPage() {
     availableTo: "",
     status: "ACTIVE",
   });
+  const authHeaders = {
+    "Content-Type": "application/json",
+    "X-User-Email": user?.email || "",
+    "X-User-Role": String(user?.role || "administrator").toUpperCase(),
+  };
+
+  async function loadUsers() {
+    try {
+      setUsersLoading(true);
+      setUsersError("");
+      const res = await fetch(`${API_BASE_URL}/api/admin/users`, {
+        headers: authHeaders,
+      });
+      if (!res.ok) {
+        throw new Error(res.status === 403 ? "403" : String(res.status));
+      }
+      const data = await res.json();
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (e) {
+      const code = e?.message;
+      setUsersError(
+        code === "403"
+          ? "Could not load users (access denied). Restart the backend after the last update, then refresh this page."
+          : "Could not load user list"
+      );
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
+  async function loadPendingUsers() {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/pending`, {
+        headers: authHeaders,
+      });
+      if (!res.ok) throw new Error("Failed to load pending");
+      const data = await res.json();
+      setPendingUsers(Array.isArray(data) ? data : []);
+    } catch {
+      setPendingUsers([]);
+    }
+  }
+
+  async function approvePendingUser(email) {
+    try {
+      setPendingActionEmail(email);
+      setUsersError("");
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${encodeURIComponent(email)}/approve`, {
+        method: "PATCH",
+        headers: authHeaders,
+      });
+      if (!res.ok) throw new Error("Approve failed");
+      await loadPendingUsers();
+      await loadUsers();
+    } catch {
+      setUsersError("Could not approve this registration");
+    } finally {
+      setPendingActionEmail("");
+    }
+  }
+
+  async function rejectPendingUser(email) {
+    const ok = window.confirm(`Remove pending registration for ${email}? They can sign up again later.`);
+    if (!ok) return;
+    try {
+      setPendingActionEmail(email);
+      setUsersError("");
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${encodeURIComponent(email)}/pending`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+      if (!res.ok) throw new Error("Reject failed");
+      await loadPendingUsers();
+      await loadUsers();
+    } catch {
+      setUsersError("Could not remove this registration");
+    } finally {
+      setPendingActionEmail("");
+    }
+  }
+
+  async function updateUserRole(email, nextRole) {
+    try {
+      setRoleSavingEmail(email);
+      setUsersError("");
+      const encodedEmail = encodeURIComponent(email);
+      const res = await fetch(`${API_BASE_URL}/api/admin/users/${encodedEmail}/role`, {
+        method: "PATCH",
+        headers: authHeaders,
+        body: JSON.stringify({ role: nextRole }),
+      });
+      if (!res.ok) throw new Error("Failed to update role");
+      const updated = await res.json();
+      setUsers((prev) =>
+        prev.map((item) => (item.email?.toLowerCase() === updated.email?.toLowerCase() ? updated : item))
+      );
+    } catch {
+      setUsersError("Could not update role");
+    } finally {
+      setRoleSavingEmail("");
+    }
+  }
 
   async function loadContactMessages() {
     try {
@@ -329,6 +439,11 @@ export default function AdminDashboardPage() {
     if (modal === "contact-messages") {
       void loadContactMessages();
       setSelectedMessageId(null);
+    }
+
+    if (modal === "users") {
+      void loadUsers();
+      void loadPendingUsers();
     }
 
     if (modal === "facilities") {
@@ -524,12 +639,103 @@ export default function AdminDashboardPage() {
               {modal === "users" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Search, filter, and edit campus accounts and role assignments. In this demo,
-                    users exist only in your browser session—no server list yet.
+                    Approve new registrations below, then manage roles for active accounts. Role changes are
+                    saved to the backend and users receive an in-app notification.
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No user directory connected (demo).
-                  </div>
+                  {pendingUsers.length > 0 ? (
+                    <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4">
+                      <h3 className="text-sm font-semibold text-amber-200">Pending registration approval</h3>
+                      <p className="mt-1 text-xs text-slate-500">
+                        These users completed sign-up but cannot sign in until you approve.
+                      </p>
+                      <ul className="mt-3 space-y-3">
+                        {pendingUsers.map((u) => (
+                          <li
+                            key={u.id || u.email}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-700/80 bg-slate-950/60 px-3 py-2"
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-white">{u.name || "—"}</p>
+                              <p className="text-xs text-slate-500">{u.email}</p>
+                              <p className="text-xs text-cyan-400/90">
+                                Requested role: {String(u.role || "").toLowerCase()}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={pendingActionEmail === u.email}
+                                onClick={() => void approvePendingUser(u.email)}
+                                className="rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                disabled={pendingActionEmail === u.email}
+                                onClick={() => void rejectPendingUser(u.email)}
+                                className="rounded-full border border-red-500/50 px-3 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {usersError ? (
+                    <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                      {usersError}
+                    </p>
+                  ) : null}
+                  {usersLoading ? (
+                    <div className="rounded-2xl border border-slate-700 bg-slate-950/60 p-6 text-center text-slate-400">
+                      Loading users...
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
+                      No users found.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {users.map((u) => (
+                        <article
+                          key={u.id || u.email}
+                          className="rounded-xl border border-slate-700 bg-slate-950/70 p-4"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-white">{u.name || "Unnamed user"}</p>
+                              <p className="text-xs text-slate-500">{u.email}</p>
+                              {String(u.accountStatus || "").toUpperCase() === "PENDING" ? (
+                                <p className="mt-1 text-xs font-medium text-amber-300">Awaiting approval</p>
+                              ) : null}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={String(u.role || "STUDENT").toUpperCase()}
+                                onChange={(e) => updateUserRole(u.email, e.target.value)}
+                                disabled={
+                                  roleSavingEmail === u.email ||
+                                  String(u.accountStatus || "").toUpperCase() === "PENDING"
+                                }
+                                className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <option value="STUDENT">STUDENT</option>
+                                <option value="LECTURER">LECTURER</option>
+                                <option value="ADMINISTRATOR">ADMINISTRATOR</option>
+                                <option value="TECHNICIAN">TECHNICIAN</option>
+                              </select>
+                              {roleSavingEmail === u.email ? (
+                                <span className="text-xs text-cyan-300">Saving...</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
