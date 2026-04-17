@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
@@ -143,6 +143,7 @@ function CloseIcon() {
 
 export default function LecturerDashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const displayName = user?.name || "Lecturer";
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -266,7 +267,13 @@ export default function LecturerDashboardPage() {
             <button
               key={tile.id}
               type="button"
-              onClick={() => setModal(tile.id)}
+              onClick={() => {
+                if (tile.id === "maintenance") {
+                  navigate("/lecturer/maintenance");
+                  return;
+                }
+                setModal(tile.id);
+              }}
               className="group w-full rounded-2xl border border-violet-500/15 bg-slate-900/80 p-6 text-left shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:border-violet-400/40 hover:shadow-violet-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
             >
               <div

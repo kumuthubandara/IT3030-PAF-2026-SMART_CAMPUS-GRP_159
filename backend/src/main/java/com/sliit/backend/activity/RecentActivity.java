@@ -1,42 +1,27 @@
 package com.sliit.backend.activity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "recent_activities")
+@Document(collection = "recent_activities")
 public class RecentActivity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(nullable = false, length = 40)
     private String category;
-
-    @Column(nullable = false, length = 500)
     private String message;
 
     /** Requester / actor email for booking & contact events — used to scope student & lecturer feeds. */
-    @Column(name = "related_user_email", length = 255)
     private String relatedUserEmail;
 
     /** True for equipment bookings and contact messages — shown on technician dashboards. */
-    @Column(name = "technician_relevant", nullable = false)
     private boolean technicianRelevant;
 
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @PrePersist
-    void onCreate() {
+    public void onCreateDefaults() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }

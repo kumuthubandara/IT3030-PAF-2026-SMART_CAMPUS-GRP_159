@@ -3,17 +3,17 @@ package com.sliit.backend.contact;
 import java.time.LocalDateTime;
 
 public class ContactMessageResponse {
-    private String id;
+    private Long id;
     private String status;
     private LocalDateTime createdAt;
 
-    public ContactMessageResponse(String id, String status, LocalDateTime createdAt) {
+    public ContactMessageResponse(Long id, String status, LocalDateTime createdAt) {
         this.id = id;
         this.status = status;
         this.createdAt = createdAt;
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
