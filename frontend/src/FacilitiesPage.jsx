@@ -158,6 +158,7 @@ function floorBlockPanelCopy(floorLabel, blockLabel, buildingKey, spaceKind = "l
   const unit = isLab ? "labs" : "halls";
   const availability =
     buildingKey === "new" ? (isLab ? `4 ${unit}` : `5 ${unit}`) : `6 ${unit}`;
+
   return {
     title: tab.label,
     description: isLab
@@ -167,11 +168,25 @@ function floorBlockPanelCopy(floorLabel, blockLabel, buildingKey, spaceKind = "l
   };
 }
 
+function generateRoomNumbers(floorLabel, blockLabel, spaceKind = "lecture") {
+  const floorNumber = floorLabel.replace("Floor ", "");
+  const prefix = blockLabel.charAt(0).toUpperCase();
+
+  return Array.from({ length: 4 }, (_, i) => {
+    const roomCode = `${prefix}${floorNumber}${String(i + 1).padStart(2, "0")}`;
+    return {
+      code: roomCode,
+      label: spaceKind === "lab" ? "Computer Lab" : "Lecture Hall",
+    };
+  });
+}
+
 export default function FacilitiesPage() {
   const { user } = useAuth();
   const role = String(user?.role ?? "")
     .trim()
     .toLowerCase();
+
   const isLecturer = role === "lecturer";
   const isStudent = role === "student";
   const isAdmin = role === "administrator" || role === "admin";
@@ -246,6 +261,11 @@ export default function FacilitiesPage() {
 
   const floorModalBlockTabs =
     floorBlocksModalBuilding === "new" ? newBuildingBlockTabs : mainBuildingBlockTabs;
+
+  const roomNumbers =
+    floorBlocksModalFloor && floorBlocksModalBuilding
+      ? generateRoomNumbers(floorBlocksModalFloor, activeFloorBlockTab, facilitySpaceKind)
+      : [];
 
   const filteredResources = apiResources.filter((resource) => {
     const matchesType = typeFilter
@@ -331,7 +351,7 @@ export default function FacilitiesPage() {
 
         <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid gap-5 md:grid-cols-2">
-            {facilities.map((facility) => (
+            {facilities.map((facility) =>
               canOpenDetailedFacilityCards &&
               (facility.name === "Lecture halls" || facility.name === "Computer labs") ? (
                 <button
@@ -400,7 +420,7 @@ export default function FacilitiesPage() {
                   </p>
                 </article>
               )
-            ))}
+            )}
           </div>
 
           <div className="mt-12 rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-6 shadow-sm">
@@ -488,6 +508,9 @@ export default function FacilitiesPage() {
                       </p>
                       <p className="mt-2 text-sm text-slate-400">
                         Location: {resource.location}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Available: {resource.availableFrom ?? "N/A"} - {resource.availableTo ?? "N/A"}
                       </p>
                       <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-cyan-400">
                         {resource.status}
@@ -683,6 +706,28 @@ export default function FacilitiesPage() {
                           </p>
                         </article>
                       ) : null}
+
+                      {roomNumbers.length > 0 ? (
+                        <div className="mt-5">
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {facilitySpaceKind === "lab" ? "Lab Numbers" : "Lecture Hall Numbers"}
+                          </p>
+
+                          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                            {roomNumbers.map((room) => (
+                              <div
+                                key={room.code}
+                                className="rounded-xl border border-violet-500/25 bg-slate-950/70 px-4 py-4 shadow-sm"
+                              >
+                                <p className="font-heading text-lg font-semibold text-violet-200">
+                                  {room.code}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-400">{room.label}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -693,6 +738,6 @@ export default function FacilitiesPage() {
       </main>
 
       <SiteFooter />
-    </div>git add 
+    </div>
   );
 }

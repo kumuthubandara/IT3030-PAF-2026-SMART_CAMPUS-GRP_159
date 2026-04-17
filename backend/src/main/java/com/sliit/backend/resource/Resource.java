@@ -1,6 +1,7 @@
 package com.sliit.backend.resource;
 
 import jakarta.persistence.*;
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "resources")
@@ -23,16 +24,25 @@ public class Resource {
     @Column(nullable = false)
     private String status;
 
+    @Column(name = "available_from")
+    private LocalTime availableFrom;
+
+    @Column(name = "available_to")
+    private LocalTime availableTo;
+
     public Resource() {
     }
 
-    public Resource(Long id, String name, String type, Integer capacity, String location, String status) {
+    public Resource(Long id, String name, String type, Integer capacity, String location, String status,
+                    LocalTime availableFrom, LocalTime availableTo) {
         this.id = id;
         this.name = name;
         this.type = type;
         this.capacity = capacity;
         this.location = location;
         this.status = status;
+        this.availableFrom = availableFrom;
+        this.availableTo = availableTo;
     }
 
     public Long getId() {
@@ -81,5 +91,21 @@ public class Resource {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public LocalTime getAvailableFrom() {
+        return availableFrom;
+    }
+
+    public void setAvailableFrom(LocalTime availableFrom) {
+        this.availableFrom = availableFrom;
+    }
+
+    public LocalTime getAvailableTo() {
+        return availableTo;
+    }
+
+    public void setAvailableTo(LocalTime availableTo) {
+        this.availableTo = availableTo;
     }
 }

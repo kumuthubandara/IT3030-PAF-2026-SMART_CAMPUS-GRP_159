@@ -34,6 +34,8 @@ public class ResourceService {
         existingResource.setCapacity(updatedResource.getCapacity());
         existingResource.setLocation(updatedResource.getLocation());
         existingResource.setStatus(updatedResource.getStatus());
+        existingResource.setAvailableFrom(updatedResource.getAvailableFrom());
+        existingResource.setAvailableTo(updatedResource.getAvailableTo());
 
         return resourceRepository.save(existingResource);
     }
