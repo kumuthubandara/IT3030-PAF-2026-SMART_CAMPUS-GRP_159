@@ -17,16 +17,17 @@ public class ResourceService {
         return resourceRepository.findAll();
     }
 
-    public Resource getResourceById(Long id) {
+    public Resource getResourceById(String id) {
         return resourceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Resource not found with id: " + id));
     }
 
     public Resource createResource(Resource resource) {
+        resource.setId(null);
         return resourceRepository.save(resource);
     }
 
-    public Resource updateResource(Long id, Resource updatedResource) {
+    public Resource updateResource(String id, Resource updatedResource) {
         Resource existingResource = getResourceById(id);
 
         existingResource.setName(updatedResource.getName());
@@ -40,7 +41,7 @@ public class ResourceService {
         return resourceRepository.save(existingResource);
     }
 
-    public void deleteResource(Long id) {
+    public void deleteResource(String id) {
         Resource existingResource = getResourceById(id);
         resourceRepository.delete(existingResource);
     }

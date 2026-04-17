@@ -1,40 +1,45 @@
 package com.sliit.backend.resource;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
 import java.time.LocalTime;
 
-@Entity
-@Table(name = "resources")
+@Document(collection = "resources")
 public class Resource {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
     private String type;
 
     private Integer capacity;
 
     private String location;
 
-    @Column(nullable = false)
     private String status;
 
-    @Column(name = "available_from")
+    @Field("available_from")
     private LocalTime availableFrom;
 
-    @Column(name = "available_to")
+    @Field("available_to")
     private LocalTime availableTo;
 
     public Resource() {
     }
 
-    public Resource(Long id, String name, String type, Integer capacity, String location, String status,
-                    LocalTime availableFrom, LocalTime availableTo) {
+    public Resource(
+            String id,
+            String name,
+            String type,
+            Integer capacity,
+            String location,
+            String status,
+            LocalTime availableFrom,
+            LocalTime availableTo) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -45,11 +50,11 @@ public class Resource {
         this.availableTo = availableTo;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

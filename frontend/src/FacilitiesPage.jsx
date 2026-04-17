@@ -223,7 +223,7 @@ export default function FacilitiesPage() {
   const [capacityFilter, setCapacityFilter] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8081/api/resources")
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8081"}/api/resources`)
       .then((res) => {
         if (!res.ok) {
           throw new Error("Failed to fetch resources");

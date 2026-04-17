@@ -1,6 +1,6 @@
 package com.sliit.backend.contact;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface ContactMessageRepository extends JpaRepository<ContactMessage, Long> {
+public interface ContactMessageRepository extends MongoRepository<ContactMessage, String> {
 }
