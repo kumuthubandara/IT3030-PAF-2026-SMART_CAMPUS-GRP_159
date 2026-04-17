@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
@@ -16,6 +16,7 @@ function priorityBadge(priority) {
 
 export default function TicketsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -25,12 +26,15 @@ export default function TicketsPage() {
     category: "",
     priority: "MEDIUM",
     location: "",
+    imageUrl: "",
+    initialComment: "",
   });
   const [filters, setFilters] = useState({ status: "", priority: "", q: "" });
 
   const role = String(user?.role ?? "").trim().toLowerCase();
-  const canCreate = role !== "technician";
   const isAdmin = role === "administrator" || role === "admin";
+  const isStudent = role === "student";
+  const canCreate = false;
 
   async function loadTickets() {
     if (!user) return;
@@ -54,15 +58,33 @@ export default function TicketsPage() {
     e.preventDefault();
     try {
       setError("");
-      await ticketsApi.createTicket(form, user);
+      const created = await ticketsApi.createTicket(
+        {
+          title: form.title,
+          description: form.description,
+          category: form.category,
+          priority: form.priority,
+          location: form.location,
+        },
+        user
+      );
+      if (form.imageUrl.trim()) {
+        await ticketsApi.addAttachments(created.id, [form.imageUrl.trim()], user);
+      }
+      if (form.initialComment.trim()) {
+        await ticketsApi.addComment(created.id, form.initialComment.trim(), user);
+      }
       setForm({
         title: "",
         description: "",
         category: "",
         priority: "MEDIUM",
         location: "",
+        imageUrl: "",
+        initialComment: "",
       });
       await loadTickets();
+      navigate(`/tickets/${created.id}`);
     } catch (e) {
       setError(e.message || "Failed to create ticket.");
     }
@@ -87,6 +109,9 @@ export default function TicketsPage() {
 
   if (!user) {
     return <Navigate to="/login?redirect=/tickets" replace />;
+  }
+  if (isStudent) {
+    return <Navigate to="/student/submit-ticket" replace />;
   }
 
   const assignedCount = tickets.length;
@@ -160,6 +185,19 @@ export default function TicketsPage() {
                 className="md:col-span-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
                 rows={4}
                 placeholder="Describe the issue"
+              />
+              <input
+                value={form.imageUrl}
+                onChange={(e) => setForm((p) => ({ ...p, imageUrl: e.target.value }))}
+                className="md:col-span-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                placeholder="Optional image URL (added as first attachment)"
+              />
+              <textarea
+                value={form.initialComment}
+                onChange={(e) => setForm((p) => ({ ...p, initialComment: e.target.value }))}
+                className="md:col-span-2 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                rows={3}
+                placeholder="Optional first comment"
               />
               <button
                 type="submit"

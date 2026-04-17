@@ -7,20 +7,28 @@ const topics = [
     title: "Report an issue",
     description:
       "Log faulty equipment, HVAC problems, lighting, or access issues so the facilities team can triage and assign work.",
+    image:
+      "https://images.unsplash.com/photo-1581094288338-2314dddb7ece?auto=format&fit=crop&w=1000&q=80",
   },
   {
     title: "Track requests",
     description:
       "Follow the status of tickets you have submitted once the maintenance API is connected to SMART CAMPUS.",
+    image:
+      "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1000&q=80",
   },
   {
     title: "Emergency",
     description:
       "For urgent safety hazards, use your campus emergency line or security desk. This portal is for routine maintenance.",
+    image:
+      "https://images.unsplash.com/photo-1582139329536-e7284fece509?auto=format&fit=crop&w=1000&q=80",
   },
 ];
 
 export default function MaintenancePage() {
+  const fallbackImage =
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='400'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%' stop-color='%230b1220'/><stop offset='100%' stop-color='%2316485f'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g)'/><text x='50%' y='52%' fill='%23a5f3fc' font-family='Arial' font-size='40' text-anchor='middle'>Smart Campus Maintenance</text></svg>";
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
       <SiteHeader />
@@ -44,13 +52,48 @@ export default function MaintenancePage() {
         <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid gap-5 md:grid-cols-3">
             {topics.map((item) => (
-              <article
-                key={item.title}
-                className="rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-6 shadow-sm transition hover:shadow-lg hover:shadow-cyan-500/10"
-              >
-                <h3 className="font-heading text-lg font-semibold text-cyan-200">{item.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-slate-400">{item.description}</p>
-              </article>
+              item.title === "Report an issue" || item.title === "Emergency" ? (
+                <Link
+                  key={item.title}
+                  to={item.title === "Emergency" ? "/student/maintenance" : "/tickets"}
+                  className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-900/80 shadow-sm transition hover:shadow-lg hover:shadow-cyan-500/10"
+                >
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="h-40 w-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = fallbackImage;
+                    }}
+                  />
+                  <div className="p-6">
+                    <h3 className="font-heading text-lg font-semibold text-cyan-200">{item.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-400">{item.description}</p>
+                  </div>
+                </Link>
+              ) : (
+                <article
+                  key={item.title}
+                  className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-900/80 shadow-sm transition hover:shadow-lg hover:shadow-cyan-500/10"
+                >
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="h-40 w-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = fallbackImage;
+                    }}
+                  />
+                  <div className="p-6">
+                    <h3 className="font-heading text-lg font-semibold text-cyan-200">{item.title}</h3>
+                    <p className="mt-3 text-sm leading-relaxed text-slate-400">{item.description}</p>
+                  </div>
+                </article>
+              )
             ))}
           </div>
 
@@ -64,7 +107,7 @@ export default function MaintenancePage() {
               for quick access after sign-in.
             </p>
             <Link
-              to="/contact"
+              to="/tickets"
               className="mt-6 inline-flex rounded-full bg-cyan-400 px-6 py-2.5 text-sm font-semibold text-slate-950 shadow-md shadow-cyan-500/25 transition hover:bg-cyan-300"
             >
               Contact support

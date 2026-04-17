@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
@@ -16,6 +16,7 @@ export default function TicketDetailsPage() {
   const [comment, setComment] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [imagePreview, setImagePreview] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const [technician, setTechnician] = useState("tech1");
   const [resolutionNotes, setResolutionNotes] = useState("");
   const [activities, setActivities] = useState([]);
@@ -25,6 +26,18 @@ export default function TicketDetailsPage() {
   const isAdmin = role === "administrator" || role === "admin";
   const isTechnician = role === "technician" || role === "tech";
   const canUpdateStatus = isAdmin || isTechnician;
+  const fileInputRef = useRef(null);
+
+  function handleLocalImage(file) {
+    if (!file || !file.type.startsWith("image/")) {
+      setError("Please drop/select a valid image file.");
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setImageUrl(objectUrl);
+    setImagePreview(objectUrl);
+    setError("");
+  }
 
   async function loadTicket() {
     if (!user || !id) return;
@@ -106,6 +119,15 @@ export default function TicketDetailsPage() {
       await loadTicket();
     } catch (e) {
       setError(e.message || "Attachment upload failed.");
+    }
+  }
+
+  function handleRemoveSelectedImage() {
+    setImageUrl("");
+    setImagePreview("");
+    setError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   }
 
@@ -196,6 +218,35 @@ export default function TicketDetailsPage() {
 
             <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
               <h2 className="mb-3 text-lg font-semibold text-cyan-300">Attachments (max 3)</h2>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  handleLocalImage(file);
+                }}
+                className={`mb-4 w-full rounded-lg border-2 border-dashed px-4 py-6 text-sm transition ${
+                  isDragging
+                    ? "border-cyan-300 bg-cyan-500/10 text-cyan-200"
+                    : "border-slate-600 bg-slate-950/70 text-slate-300 hover:border-cyan-500/60"
+                }`}
+              >
+                Drag and drop image here, or click to select
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleLocalImage(e.target.files?.[0])}
+              />
               <form onSubmit={handleAttachment} className="mb-4 flex flex-wrap gap-2">
                 <input
                   value={imageUrl}
@@ -212,7 +263,16 @@ export default function TicketDetailsPage() {
                 </button>
               </form>
               {imagePreview ? (
-                <img src={imagePreview} alt="Attachment preview" className="mb-4 max-h-52 rounded-lg border border-slate-700 object-cover" />
+                <div className="mb-4">
+                  <img src={imagePreview} alt="Attachment preview" className="max-h-52 rounded-lg border border-slate-700 object-cover" />
+                  <button
+                    type="button"
+                    onClick={handleRemoveSelectedImage}
+                    className="mt-2 rounded-md border border-red-400/50 px-3 py-1 text-xs text-red-200 hover:bg-red-500/10"
+                  >
+                    Remove selected image
+                  </button>
+                </div>
               ) : null}
               <div className="grid gap-3 md:grid-cols-3">
                 {(ticket.attachments ?? []).map((attachment) => (
@@ -277,6 +337,15 @@ export default function TicketDetailsPage() {
                 {activities.length === 0 ? <p className="text-sm text-slate-400">No activity yet.</p> : null}
               </div>
             </section>
+
+            <div className="flex justify-end">
+              <Link
+                to="/tickets"
+                className="rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
+              >
+                End / Back to Tickets
+              </Link>
+            </div>
           </div>
         ) : null}
       </main>

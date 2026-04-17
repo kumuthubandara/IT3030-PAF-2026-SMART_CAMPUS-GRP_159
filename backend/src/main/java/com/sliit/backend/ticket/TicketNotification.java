@@ -27,7 +27,8 @@ public class TicketNotification {
     @Column(nullable = false)
     private Long ticketId;
 
-    @Column(nullable = false)
+    /** MySQL reserves `read`; map to a safe column name. */
+    @Column(name = "is_read", nullable = false)
     private boolean read;
 
     @Column(nullable = false)

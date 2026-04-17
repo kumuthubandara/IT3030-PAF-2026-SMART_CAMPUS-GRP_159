@@ -223,18 +223,7 @@ public class TicketService {
     }
 
     private void validateTransition(TicketStatus current, TicketStatus next) {
-        if (current == next) {
-            return;
-        }
-        boolean valid = switch (current) {
-            case OPEN -> next == TicketStatus.IN_PROGRESS || next == TicketStatus.REJECTED;
-            case IN_PROGRESS -> next == TicketStatus.RESOLVED || next == TicketStatus.OPEN;
-            case RESOLVED -> next == TicketStatus.CLOSED || next == TicketStatus.IN_PROGRESS;
-            case CLOSED, REJECTED -> false;
-        };
-        if (!valid) {
-            throw new BadRequestException("Invalid ticket status transition from " + current + " to " + next + ".");
-        }
+        // Per current requirement, allow changing from any status to any status.
     }
 
     private boolean hasRole(Authentication auth, String role) {

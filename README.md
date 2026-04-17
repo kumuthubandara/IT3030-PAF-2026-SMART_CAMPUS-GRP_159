@@ -27,6 +27,7 @@ This project contains a Spring Boot backend and React frontend for a maintenance
 
 - `backend/` - Spring Boot API
 - `frontend/` - React web app
+- `database_queries.sql` - ready-to-run MySQL query pack for demo/testing/reporting
 
 ## Local Run
 

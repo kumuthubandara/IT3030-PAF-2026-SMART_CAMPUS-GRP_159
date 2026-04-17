@@ -11,6 +11,11 @@ import SignUpPage from "./SignUpPage";
 import StudentSettingsRoute from "./StudentSettingsRoute";
 import TicketsPage from "./TicketsPage";
 import TicketDetailsPage from "./TicketDetailsPage";
+import StudentEmergencyDashboardPage from "./StudentEmergencyDashboardPage";
+import StudentSubmitTicketPage from "./StudentSubmitTicketPage";
+import TicketEntryRoute from "./TicketEntryRoute";
+import LecturerSubmitTicketPage from "./LecturerSubmitTicketPage";
+import LecturerMaintenancePage from "./LecturerMaintenancePage";
 
 export default function App() {
   return (
@@ -26,8 +31,13 @@ export default function App() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/settings" element={<StudentSettingsRoute />} />
-        <Route path="/tickets" element={<TicketsPage />} />
+        <Route path="/tickets" element={<TicketEntryRoute />} />
+        <Route path="/tickets/manage" element={<TicketsPage />} />
         <Route path="/tickets/:id" element={<TicketDetailsPage />} />
+        <Route path="/student/maintenance" element={<StudentEmergencyDashboardPage />} />
+        <Route path="/student/submit-ticket" element={<StudentSubmitTicketPage />} />
+        <Route path="/lecturer/submit-ticket" element={<LecturerSubmitTicketPage />} />
+        <Route path="/lecturer/maintenance" element={<LecturerMaintenancePage />} />
       </Routes>
     </BrowserRouter>
   );
