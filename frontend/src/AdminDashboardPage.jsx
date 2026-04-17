@@ -4,8 +4,10 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
+
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const RESOURCE_API_URL = "http://localhost:8081/api/resources";
 
 function readContactMessages() {
   try {
@@ -141,21 +143,34 @@ function CloseIcon() {
 export default function AdminDashboardPage() {
   const { user } = useAuth();
   const displayName = user?.name || "Administrator";
-  const role = String(user?.role ?? "")
-    .trim()
-    .toLowerCase();
+  const role = String(user?.role ?? "").trim().toLowerCase();
   const isAdmin = role === "administrator" || role === "admin";
+
   const [modal, setModal] = useState(null);
   const [contactMessages, setContactMessages] = useState(() => readContactMessages());
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
 
+  const [facilityResources, setFacilityResources] = useState([]);
+  const [facilityLoading, setFacilityLoading] = useState(false);
+  const [facilityError, setFacilityError] = useState("");
+  const [editingFacilityId, setEditingFacilityId] = useState(null);
+
+  const [facilityForm, setFacilityForm] = useState({
+    name: "",
+    type: "",
+    capacity: "",
+    location: "",
+    availableFrom: "",
+    availableTo: "",
+    status: "ACTIVE",
+  });
+
   async function loadContactMessages() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/contact-messages`);
-      if (!res.ok) {
-        throw new Error("Failed to load");
-      }
+      if (!res.ok) throw new Error("Failed to load");
+
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const mapped = data.map((item) => ({
@@ -173,42 +188,161 @@ export default function AdminDashboardPage() {
         return;
       }
     } catch {
-      // fallback to session storage below
+      // fallback
     }
+
     setContactMessages(readContactMessages());
   }
 
   async function loadRecentActivities() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=20`);
-      if (!res.ok) {
-        throw new Error("Failed to load");
-      }
+      if (!res.ok) throw new Error("Failed to load");
+
       const data = await res.json();
       if (Array.isArray(data)) {
         setRecentActivities(data);
-        return;
       }
     } catch {
-      // keep current list if backend is unavailable
+      // keep current list if backend unavailable
     }
   }
 
-  if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+  async function loadFacilityResources() {
+    try {
+      setFacilityLoading(true);
+      setFacilityError("");
+
+      const res = await fetch(RESOURCE_API_URL);
+      if (!res.ok) throw new Error("Failed to load resources");
+
+      const data = await res.json();
+      setFacilityResources(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setFacilityError("Could not load facilities");
+    } finally {
+      setFacilityLoading(false);
+    }
+  }
+
+  function resetFacilityForm() {
+    setFacilityForm({
+      name: "",
+      type: "",
+      capacity: "",
+      location: "",
+      availableFrom: "",
+      availableTo: "",
+      status: "ACTIVE",
+    });
+    setEditingFacilityId(null);
+  }
+
+  function handleFacilityInputChange(e) {
+    const { name, value } = e.target;
+    setFacilityForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  }
+
+  async function handleSaveFacility(e) {
+    e.preventDefault();
+
+    try {
+      setFacilityError("");
+
+      const payload = {
+        name: facilityForm.name,
+        type: facilityForm.type,
+        capacity: facilityForm.capacity ? Number(facilityForm.capacity) : null,
+        location: facilityForm.location,
+        availableFrom: facilityForm.availableFrom || null,
+        availableTo: facilityForm.availableTo || null,
+        status: facilityForm.status,
+      };
+
+      const url = editingFacilityId
+        ? `${RESOURCE_API_URL}/${editingFacilityId}`
+        : RESOURCE_API_URL;
+
+      const method = editingFacilityId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Failed to save resource");
+
+      await loadFacilityResources();
+      resetFacilityForm();
+    } catch (error) {
+      console.error(error);
+      setFacilityError("Could not save resource");
+    }
+  }
+
+  function handleEditFacility(resource) {
+    setEditingFacilityId(resource.id);
+    setFacilityForm({
+      name: resource.name ?? "",
+      type: resource.type ?? "",
+      capacity: resource.capacity ?? "",
+      location: resource.location ?? "",
+      availableFrom: resource.availableFrom ?? "",
+      availableTo: resource.availableTo ?? "",
+      status: resource.status ?? "ACTIVE",
+    });
+  }
+
+  async function handleDeleteFacility(id) {
+    const confirmed = window.confirm("Are you sure you want to delete this resource?");
+    if (!confirmed) return;
+
+    try {
+      setFacilityError("");
+
+      const res = await fetch(`${RESOURCE_API_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete resource");
+
+      await loadFacilityResources();
+
+      if (editingFacilityId === id) {
+        resetFacilityForm();
+      }
+    } catch (error) {
+      console.error(error);
+      setFacilityError("Could not delete resource");
+    }
   }
 
   useEffect(() => {
     if (!modal) return;
+
     if (modal === "contact-messages") {
       void loadContactMessages();
       setSelectedMessageId(null);
     }
+
+    if (modal === "facilities") {
+      void loadFacilityResources();
+    }
+
     function onKey(e) {
       if (e.key === "Escape") setModal(null);
     }
+
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
@@ -222,6 +356,10 @@ export default function AdminDashboardPage() {
     }, 10000);
     return () => clearInterval(id);
   }, []);
+
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const activeTile = tiles.find((t) => t.id === modal);
   const selectedMessage = contactMessages.find((msg) => msg.id === selectedMessageId) || null;
@@ -238,8 +376,7 @@ export default function AdminDashboardPage() {
         <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-              Welcome back,{" "}
-              <span className="text-cyan-400">{displayName}!</span>
+              Welcome back, <span className="text-cyan-400">{displayName}!</span>
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
               Manage users, facilities, bookings, maintenance, contact messages, and system settings
@@ -249,6 +386,7 @@ export default function AdminDashboardPage() {
               Academic year 2025/26 · Sample data for demonstration
             </p>
           </div>
+
           <div className="flex shrink-0 flex-wrap gap-3">
             <Link
               to="/"
@@ -278,11 +416,7 @@ export default function AdminDashboardPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                 {card.label}
               </p>
-              <p
-                className={`mt-2 text-2xl font-bold ${
-                  card.highlight ? "text-cyan-400" : "text-white"
-                }`}
-              >
+              <p className={`mt-2 text-2xl font-bold ${card.highlight ? "text-cyan-400" : "text-white"}`}>
                 {card.value}
               </p>
             </div>
@@ -291,9 +425,7 @@ export default function AdminDashboardPage() {
 
         <div className="mt-12">
           <h2 className="font-heading text-lg font-semibold text-white">Your tools</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Tap a card to open details in a popup.
-          </p>
+          <p className="mt-1 text-sm text-slate-400">Tap a card to open details in a popup.</p>
         </div>
 
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -304,9 +436,7 @@ export default function AdminDashboardPage() {
               onClick={() => setModal(tile.id)}
               className="group w-full rounded-2xl border border-cyan-500/15 bg-slate-900/80 p-6 text-left shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:border-cyan-500/40 hover:shadow-cyan-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
             >
-              <div
-                className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${tile.iconBg}`}
-              >
+              <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${tile.iconBg}`}>
                 {tile.icon}
               </div>
               <h2 className="mt-4 font-heading text-xl font-semibold text-white group-hover:text-cyan-300">
@@ -325,6 +455,7 @@ export default function AdminDashboardPage() {
           <p className="mt-1 text-sm text-slate-400">
             View latest system actions such as bookings, tickets, and updates.
           </p>
+
           {recentActivities.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-600/60 bg-slate-900/50 p-6 text-sm text-slate-500">
               No recent activity yet.
@@ -346,6 +477,7 @@ export default function AdminDashboardPage() {
           )}
         </section>
       </main>
+
       <SiteFooter />
 
       {modal && activeTile && (
@@ -361,7 +493,7 @@ export default function AdminDashboardPage() {
             aria-modal="true"
             aria-labelledby="admin-dashboard-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-cyan-500/20 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" ? "max-w-2xl" : "max-w-lg"
+              modal === "settings" ? "max-w-2xl" : "max-w-4xl"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-cyan-500/15 pb-4">
@@ -378,6 +510,7 @@ export default function AdminDashboardPage() {
                   {activeTile.title}
                 </h2>
               </div>
+
               <button
                 type="button"
                 onClick={() => setModal(null)}
@@ -414,8 +547,162 @@ export default function AdminDashboardPage() {
                     <strong className="text-slate-200">Manage Bookings</strong> to approve or reject
                     requests.
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No facility editor connected (demo).
+
+                  <div className="mt-6 space-y-6">
+                    <form
+                      onSubmit={handleSaveFacility}
+                      className="rounded-2xl border border-cyan-500/20 bg-slate-950/60 p-5"
+                    >
+                      <h4 className="text-lg font-semibold text-white">
+                        {editingFacilityId ? "Update Resource" : "Add New Resource"}
+                      </h4>
+
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <input
+                          type="text"
+                          name="name"
+                          value={facilityForm.name}
+                          onChange={handleFacilityInputChange}
+                          placeholder="Resource name"
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-white"
+                          required
+                        />
+
+                        <input
+                          type="text"
+                          name="type"
+                          value={facilityForm.type}
+                          onChange={handleFacilityInputChange}
+                          placeholder="Type (LECTURE_HALL / LAB / EQUIPMENT)"
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-white"
+                          required
+                        />
+
+                        <input
+                          type="number"
+                          name="capacity"
+                          value={facilityForm.capacity}
+                          onChange={handleFacilityInputChange}
+                          placeholder="Capacity"
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-white"
+                        />
+
+                        <input
+                          type="text"
+                          name="location"
+                          value={facilityForm.location}
+                          onChange={handleFacilityInputChange}
+                          placeholder="Location"
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-white"
+                        />
+
+                        <input
+                          type="time"
+                          name="availableFrom"
+                          value={facilityForm.availableFrom}
+                          onChange={handleFacilityInputChange}
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-white"
+                        />
+
+                        <input
+                          type="time"
+                          name="availableTo"
+                          value={facilityForm.availableTo}
+                          onChange={handleFacilityInputChange}
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-white"
+                        />
+
+                        <select
+                          name="status"
+                          value={facilityForm.status}
+                          onChange={handleFacilityInputChange}
+                          className="rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-white"
+                        >
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="INACTIVE">INACTIVE</option>
+                          <option value="MAINTENANCE">MAINTENANCE</option>
+                        </select>
+                      </div>
+
+                      <div className="mt-4 flex gap-3">
+                        <button
+                          type="submit"
+                          className="rounded-full bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950"
+                        >
+                          {editingFacilityId ? "Update Resource" : "Add Resource"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={resetFacilityForm}
+                          className="rounded-full border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-300"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </form>
+
+                    <div className="rounded-2xl border border-cyan-500/20 bg-slate-950/60 p-5">
+                      <h4 className="text-lg font-semibold text-white">Existing Resources</h4>
+
+                      {facilityLoading && (
+                        <p className="mt-4 text-sm text-slate-400">Loading resources...</p>
+                      )}
+
+                      {facilityError && (
+                        <p className="mt-4 text-sm text-red-400">{facilityError}</p>
+                      )}
+
+                      {!facilityLoading && !facilityError && (
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          {facilityResources.length > 0 ? (
+                            facilityResources.map((resource) => (
+                              <article
+                                key={resource.id}
+                                className="rounded-xl border border-slate-700 bg-slate-900 p-4"
+                              >
+                                <h5 className="text-base font-semibold text-cyan-200">
+                                  {resource.name}
+                                </h5>
+                                <p className="mt-2 text-sm text-slate-400">Type: {resource.type}</p>
+                                <p className="mt-1 text-sm text-slate-400">
+                                  Capacity: {resource.capacity ?? "N/A"}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-400">
+                                  Location: {resource.location}
+                                </p>
+                                <p className="mt-1 text-sm text-slate-400">
+                                  Available: {resource.availableFrom ?? "N/A"} - {resource.availableTo ?? "N/A"}
+                                </p>
+                                <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-cyan-400">
+                                  {resource.status}
+                                </p>
+
+                                <div className="mt-4 flex gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditFacility(resource)}
+                                    className="rounded-full border border-cyan-500/40 px-4 py-2 text-xs font-semibold text-cyan-300"
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteFacility(resource.id)}
+                                    className="rounded-full border border-red-500/40 px-4 py-2 text-xs font-semibold text-red-300"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </article>
+                            ))
+                          ) : (
+                            <p className="text-sm text-slate-400">No resources found.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -457,6 +744,7 @@ export default function AdminDashboardPage() {
                     form. Assign ownership, mark priority, and track follow-up actions from this
                     queue when your backend API is connected.
                   </p>
+
                   {contactMessages.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
                       No contact messages yet.
@@ -494,6 +782,7 @@ export default function AdminDashboardPage() {
                       ))}
                     </div>
                   )}
+
                   {selectedMessage ? (
                     <div className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
                       <div className="flex items-start justify-between gap-3">
