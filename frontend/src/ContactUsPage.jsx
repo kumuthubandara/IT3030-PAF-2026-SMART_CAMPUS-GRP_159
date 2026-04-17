@@ -35,7 +35,7 @@ const responseTimes = [
   { title: "Demo & rollout planning", detail: "2–3 days to schedule a walkthrough." },
 ];
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 function readContactMessages() {
   try {

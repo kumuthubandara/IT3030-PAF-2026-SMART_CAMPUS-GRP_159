@@ -4,7 +4,7 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 const tiles = [
   {
@@ -155,7 +155,7 @@ export default function TechnicianDashboardPage() {
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
         <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400/90">
-          SMART CAMPUS • TECHNICIAN
+          SMART CAMPUS ï¿½ TECHNICIAN
         </p>
 
         <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -247,7 +247,7 @@ export default function TechnicianDashboardPage() {
                 >
                   <p className="text-sm text-slate-200">{activity.message}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {activity.category || "SYSTEM"} • {formatDateTime(activity.createdAt)}
+                    {activity.category || "SYSTEM"} ï¿½ {formatDateTime(activity.createdAt)}
                   </p>
                 </li>
               ))}
@@ -296,7 +296,7 @@ export default function TechnicianDashboardPage() {
               {modal === "profile" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    You are signed in as <span className="text-slate-200">{user?.email || "—"}</span> with the{" "}
+                    You are signed in as <span className="text-slate-200">{user?.email || "ï¿½"}</span> with the{" "}
                     <span className="text-cyan-400">Technician</span> role.
                   </p>
                   <dl className="grid gap-4 border-t border-cyan-500/15 pt-4 sm:grid-cols-2">
@@ -306,7 +306,7 @@ export default function TechnicianDashboardPage() {
                     </div>
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Campus email</dt>
-                      <dd className="mt-1 text-slate-200">{user?.email || "—"}</dd>
+                      <dd className="mt-1 text-slate-200">{user?.email || "ï¿½"}</dd>
                     </div>
                   </dl>
                 </div>
@@ -314,7 +314,7 @@ export default function TechnicianDashboardPage() {
 
               {modal === "settings" && (
                 <div className="space-y-4">
-                  <p className="text-sm text-slate-400">Demo controls only — wire these fields to your API when ready.</p>
+                  <p className="text-sm text-slate-400">Demo controls only ï¿½ wire these fields to your API when ready.</p>
                   <StudentSettingsForm />
                 </div>
               )}

@@ -4,8 +4,10 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
+
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+
 
 function readContactMessages() {
   try {
@@ -138,24 +140,355 @@ function CloseIcon() {
   );
 }
 
+const STRUCTURED_LOCATION_TYPES = new Set(["Lecture Hall", "Computer Lab"]);
+const MAIN_BUILDING_FLOORS = ["3", "4", "5", "6"];
+const NEW_BUILDING_FLOORS = Array.from({ length: 11 }, (_, i) => String(i + 3)); // 3-13
+
+function isStructuredLocationType(type) {
+  return STRUCTURED_LOCATION_TYPES.has(type);
+}
+
+function getCapacityLimit(type) {
+  if (type === "Lecture Hall") return { min: 1, max: 500 };
+  if (type === "Computer Lab") return { min: 1, max: 60 };
+  return null;
+}
+
+function needsAudienceSelection(type) {
+  return type === "Library Workspace" || type === "Meeting Room" || isEquipmentType(type);
+}
+
+function isLibraryWorkspaceType(type) {
+  return type === "Library Workspace";
+}
+
+function isMeetingRoomType(type) {
+  return type === "Meeting Room";
+}
+
+function isEquipmentType(type) {
+  return type === "Equipment" || type === "Equipments";
+}
+
+function getAudienceOptionsForType(type) {
+  if (isEquipmentType(type)) {
+    return [
+      { value: "Lecturer", label: "Lecturer" },
+      { value: "Technician", label: "Technician" },
+    ];
+  }
+  return [
+    { value: "Student", label: "Student" },
+    { value: "Lecturer", label: "Lecturer" },
+  ];
+}
+
+function getDuplicateMessageForType(type) {
+  if (type === "Lecture Hall") return "This lecture hall already exists";
+  if (type === "Computer Lab") return "This computer lab already exists";
+  if (type === "Library Workspace") return "This workspace already exists";
+  if (type === "Meeting Room") return "This meeting room already exists";
+  if (isEquipmentType(type)) return "This equipment already exists";
+  return "This resource already exists";
+}
+
+function getIdentifierValueForResource(resource) {
+  if (resource.type === "Lecture Hall" || resource.type === "Computer Lab") {
+    return String(resource.hallNumber ?? "").trim().toLowerCase();
+  }
+  if (resource.type === "Library Workspace") {
+    return String(resource.workspaceNumber ?? "").trim().toLowerCase();
+  }
+  if (resource.type === "Meeting Room") {
+    return String(resource.meetingRoomNumber ?? "").trim().toLowerCase();
+  }
+  if (isEquipmentType(resource.type)) {
+    return String(resource.equipmentName ?? "").trim().toLowerCase();
+  }
+  return "";
+}
+
+function getMeetingRoomCapacityRange(audience) {
+  if (audience === "Student") return { min: 5, max: 8, helper: "Allowed range: 5–8" };
+  if (audience === "Lecturer") return { min: 1, max: 8, helper: "Allowed range: 1–8" };
+  return null;
+}
+
+function validateMeetingRoomCapacity(form) {
+  const minValue = String(form.minCapacity ?? "").trim();
+  const maxValue = String(form.maxCapacity ?? "").trim();
+  const validIntegerPattern = /^\d+$/;
+
+  if (!minValue) {
+    return { minCapacity: "Minimum capacity is required." };
+  }
+  if (!validIntegerPattern.test(minValue) || Number(minValue) < 1) {
+    return { minCapacity: "Minimum capacity must be a positive integer." };
+  }
+
+  if (!maxValue) {
+    return { maxCapacity: "Maximum capacity is required." };
+  }
+  if (!validIntegerPattern.test(maxValue) || Number(maxValue) < 1) {
+    return { maxCapacity: "Maximum capacity must be a positive integer." };
+  }
+
+  const minCapacityNumber = Number(minValue);
+  const maxCapacityNumber = Number(maxValue);
+  if (minCapacityNumber > maxCapacityNumber) {
+    return { maxCapacity: "Minimum capacity must be less than or equal to maximum capacity" };
+  }
+
+  const range = getMeetingRoomCapacityRange(form.audience);
+  if (!range) return null;
+
+  if (minCapacityNumber < range.min || maxCapacityNumber > range.max) {
+    if (form.audience === "Student") {
+      return {
+        maxCapacity: "For students, meeting room capacity must be between 5 and 8",
+      };
+    }
+    if (form.audience === "Lecturer") {
+      return {
+        maxCapacity: "For lecturers, meeting room capacity must be between 1 and 8",
+      };
+    }
+  }
+
+  return null;
+}
+
+function getAutoLocationForType(type) {
+  if (type === "Meeting Room" || type === "Library Workspace") {
+    return "New Building - Floor 1 - Library";
+  }
+  if (isEquipmentType(type)) {
+    return "Main Building - 1st Floor Equipment Store";
+  }
+  return "";
+}
+
+const CAMPUS_OPEN_MINUTES = 8 * 60; // 08:00
+const CAMPUS_CLOSE_MINUTES = 20 * 60; // 20:00
+
+function timeToMinutes(value) {
+  if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
+  const [hh, mm] = value.split(":").map(Number);
+  if (Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  return hh * 60 + mm;
+}
+
+function normalizeText(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function timesOverlap(startA, endA, startB, endB) {
+  return startA < endB && startB < endA;
+}
+
+function getAvailabilityValidationErrors(availableFrom, availableTo, status) {
+  const errors = {};
+  if (status !== "ACTIVE") return errors;
+
+  if (!availableFrom) {
+    errors.availableFrom = "Availability start time is required";
+  }
+  if (!availableTo) {
+    errors.availableTo = "Availability end time is required";
+  }
+
+  const startMinutes = timeToMinutes(availableFrom);
+  const endMinutes = timeToMinutes(availableTo);
+  if (startMinutes == null || endMinutes == null) {
+    return errors;
+  }
+
+  if (startMinutes < CAMPUS_OPEN_MINUTES || startMinutes > CAMPUS_CLOSE_MINUTES) {
+    errors.availableFrom = "Start time must be between 08:00 and 20:00";
+  }
+  if (endMinutes < CAMPUS_OPEN_MINUTES || endMinutes > CAMPUS_CLOSE_MINUTES) {
+    errors.availableTo = "End time must be between 08:00 and 20:00";
+  }
+  if (errors.availableFrom || errors.availableTo) {
+    return errors;
+  }
+
+  if (startMinutes === endMinutes) {
+    errors.availableTo = "Start and end time cannot be the same";
+    return errors;
+  }
+  if (startMinutes > endMinutes) {
+    errors.availableTo = "Start time must be earlier than end time";
+    return errors;
+  }
+  if (endMinutes - startMinutes < 30) {
+    errors.availableTo = "Availability window must be at least 30 minutes";
+  }
+
+  return errors;
+}
+
+function validateFacilityForm(form) {
+  const fieldErrors = {};
+  const structuredLocation = isStructuredLocationType(form.type);
+  const capacityLimit = getCapacityLimit(form.type);
+  const isMeetingRoom = isMeetingRoomType(form.type);
+
+  if (!form.type.trim()) {
+    fieldErrors.type = "Type is required.";
+  }
+
+  const hasLocation = structuredLocation
+    ? Boolean(form.building && form.floor && form.block && form.hallNumber.trim())
+    : Boolean(form.location.trim());
+  if (!hasLocation) {
+    fieldErrors.location = structuredLocation
+      ? "Please select building, floor, block, and hall number."
+      : "Please fill Type and Location.";
+  }
+
+  if (needsAudienceSelection(form.type) && !form.audience) {
+    fieldErrors.audience = isEquipmentType(form.type)
+      ? "Please select Lecturer or Technician."
+      : "Please select Student or Lecturer.";
+  }
+
+  if (structuredLocation && (Number.isNaN(Number(form.hallNumber)) || Number(form.hallNumber) < 1)) {
+    fieldErrors.hallNumber = "Hall number must be a number greater than 0.";
+  }
+
+  const positiveIntegerPattern = /^\d+$/;
+  if (isMeetingRoomType(form.type)) {
+    if (!String(form.meetingRoomNumber ?? "").trim()) {
+      fieldErrors.meetingRoomNumber = "Meeting Room Number is required.";
+    } else if (
+      !positiveIntegerPattern.test(String(form.meetingRoomNumber)) ||
+      Number(form.meetingRoomNumber) < 1
+    ) {
+      fieldErrors.meetingRoomNumber = "Meeting Room Number must be a positive number.";
+    }
+  }
+
+  if (isLibraryWorkspaceType(form.type)) {
+    if (!String(form.workspaceNumber ?? "").trim()) {
+      fieldErrors.workspaceNumber = "Workspace Number is required.";
+    } else if (
+      !positiveIntegerPattern.test(String(form.workspaceNumber)) ||
+      Number(form.workspaceNumber) < 1
+    ) {
+      fieldErrors.workspaceNumber = "Workspace Number must be a positive number.";
+    }
+  }
+
+  if (isEquipmentType(form.type) && !String(form.equipmentName ?? "").trim()) {
+    fieldErrors.equipmentName = "Equipment Name is required.";
+  }
+
+  if (isMeetingRoom) {
+    const meetingRoomCapacityErrors = validateMeetingRoomCapacity(form);
+    if (meetingRoomCapacityErrors?.minCapacity) {
+      fieldErrors.minCapacity = meetingRoomCapacityErrors.minCapacity;
+    }
+    if (meetingRoomCapacityErrors?.maxCapacity) {
+      fieldErrors.maxCapacity = meetingRoomCapacityErrors.maxCapacity;
+    }
+  } else {
+    const capacityValue = form.capacity ? Number(form.capacity) : null;
+    if (
+      capacityLimit &&
+      (capacityValue === null ||
+        Number.isNaN(capacityValue) ||
+        capacityValue < capacityLimit.min ||
+        capacityValue > capacityLimit.max)
+    ) {
+      fieldErrors.capacity = `${form.type} capacity must be between ${capacityLimit.min} and ${capacityLimit.max}.`;
+    }
+  }
+
+  Object.assign(
+    fieldErrors,
+    getAvailabilityValidationErrors(form.availableFrom, form.availableTo, form.status),
+  );
+
+  return { fieldErrors };
+}
+
+function buildRoomCode(block, floor, hallNumber) {
+  const safeBlock = String(block ?? "").trim().charAt(0).toUpperCase();
+  const safeFloor = String(floor ?? "").trim();
+  const number = Number(hallNumber);
+  if (!safeBlock || !safeFloor || Number.isNaN(number)) return "";
+  return `${safeBlock}${safeFloor}${String(number).padStart(2, "0")}`;
+}
+
+function buildResourceName(
+  type,
+  block,
+  floor,
+  hallNumber,
+  location,
+  meetingRoomNumber,
+  workspaceNumber,
+  equipmentName,
+) {
+  if (isStructuredLocationType(type)) {
+    const code = buildRoomCode(block, floor, hallNumber);
+    const prefix = type === "Computer Lab" ? "Computer Lab" : "Lecture Hall";
+    return code ? `${prefix} ${code}` : prefix;
+  }
+  if (type === "Meeting Room") {
+    return meetingRoomNumber ? `Meeting Room ${meetingRoomNumber}` : "Meeting Room";
+  }
+  if (type === "Library Workspace") {
+    return workspaceNumber ? `Library Workspace ${workspaceNumber}` : "Library Workspace";
+  }
+  if (isEquipmentType(type)) {
+    return equipmentName ? equipmentName : "Equipment";
+  }
+  return `${type} - ${location}`;
+}
+
 export default function AdminDashboardPage() {
   const { user } = useAuth();
   const displayName = user?.name || "Administrator";
-  const role = String(user?.role ?? "")
-    .trim()
-    .toLowerCase();
+  const role = String(user?.role ?? "").trim().toLowerCase();
   const isAdmin = role === "administrator" || role === "admin";
+
   const [modal, setModal] = useState(null);
   const [contactMessages, setContactMessages] = useState(() => readContactMessages());
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [isAddFacilityFormOpen, setIsAddFacilityFormOpen] = useState(false);
+  const [facilitySaveMessage, setFacilitySaveMessage] = useState("");
+  const [facilitySaveMessageType, setFacilitySaveMessageType] = useState("success");
+  const [editingFacilityId, setEditingFacilityId] = useState(null);
+  const [facilities, setFacilities] = useState([]);
+  const [isFacilitiesLoading, setIsFacilitiesLoading] = useState(false);
+  const [facilityFieldErrors, setFacilityFieldErrors] = useState({});
+  const [facilityForm, setFacilityForm] = useState({
+    type: "",
+    capacity: "",
+    minCapacity: "",
+    maxCapacity: "",
+    meetingRoomNumber: "",
+    workspaceNumber: "",
+    equipmentName: "",
+    location: "",
+    audience: "",
+    building: "",
+    floor: "",
+    block: "",
+    hallNumber: "",
+    availableFrom: "",
+    availableTo: "",
+    status: "ACTIVE",
+  });
 
   async function loadContactMessages() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/contact-messages`);
-      if (!res.ok) {
-        throw new Error("Failed to load");
-      }
+      if (!res.ok) throw new Error("Failed to load");
+
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         const mapped = data.map((item) => ({
@@ -173,42 +506,63 @@ export default function AdminDashboardPage() {
         return;
       }
     } catch {
-      // fallback to session storage below
+      // fallback
     }
+
     setContactMessages(readContactMessages());
   }
 
   async function loadRecentActivities() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=20`);
-      if (!res.ok) {
-        throw new Error("Failed to load");
-      }
+      if (!res.ok) throw new Error("Failed to load");
+
       const data = await res.json();
       if (Array.isArray(data)) {
         setRecentActivities(data);
-        return;
       }
     } catch {
-      // keep current list if backend is unavailable
+      // keep current list if backend unavailable
     }
   }
 
-  if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+  async function loadFacilities() {
+    try {
+      setIsFacilitiesLoading(true);
+      const res = await fetch(`${API_BASE_URL}/api/resources`);
+      if (!res.ok) throw new Error("Failed to load resources");
+      const data = await res.json();
+      setFacilities(Array.isArray(data) ? data : []);
+    } catch {
+      setFacilitySaveMessageType("error");
+      setFacilitySaveMessage("Could not load facilities from database.");
+    } finally {
+      setIsFacilitiesLoading(false);
+    }
   }
 
   useEffect(() => {
     if (!modal) return;
+
     if (modal === "contact-messages") {
       void loadContactMessages();
       setSelectedMessageId(null);
     }
+    if (modal === "facilities") {
+      setIsAddFacilityFormOpen(true);
+      setFacilitySaveMessage("");
+      setFacilitySaveMessageType("success");
+      setEditingFacilityId(null);
+      void loadFacilities();
+    }
+
     function onKey(e) {
       if (e.key === "Escape") setModal(null);
     }
+
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
@@ -223,8 +577,315 @@ export default function AdminDashboardPage() {
     return () => clearInterval(id);
   }, []);
 
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   const activeTile = tiles.find((t) => t.id === modal);
   const selectedMessage = contactMessages.find((msg) => msg.id === selectedMessageId) || null;
+
+  function handleFacilityInputChange(e) {
+    const { name, value } = e.target;
+    setFacilityFieldErrors({});
+    setFacilityForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "type" && !isStructuredLocationType(value)) {
+        next.building = "";
+        next.floor = "";
+        next.block = "";
+        next.hallNumber = "";
+      }
+      if (name === "type") {
+        const autoLocation = getAutoLocationForType(value);
+        if (autoLocation) {
+          next.location = autoLocation;
+        } else if (isStructuredLocationType(value)) {
+          next.location = "";
+        }
+      }
+      if (name === "type" && !needsAudienceSelection(value)) {
+        next.audience = "";
+      }
+      if (name === "type") {
+        next.meetingRoomNumber = "";
+        next.workspaceNumber = "";
+        next.equipmentName = "";
+        if (isLibraryWorkspaceType(value)) {
+          next.capacity = "1";
+          next.minCapacity = "";
+          next.maxCapacity = "";
+        } else if (isMeetingRoomType(value)) {
+          next.capacity = "";
+        } else if (isLibraryWorkspaceType(prev.type) || isMeetingRoomType(prev.type)) {
+          next.capacity = "";
+          next.minCapacity = "";
+          next.maxCapacity = "";
+        }
+      }
+      if (name === "status" && value === "OUT_OF_SERVICE") {
+        next.availableFrom = "";
+        next.availableTo = "";
+      }
+      if (name === "building") {
+        next.floor = "";
+        next.block = "";
+        next.hallNumber = "";
+      }
+      if (name === "floor") {
+        next.block = "";
+        next.hallNumber = "";
+      }
+      if (name === "block") {
+        next.hallNumber = "";
+      }
+
+      if (name === "type" || name === "audience" || name === "minCapacity" || name === "maxCapacity") {
+        const meetingRoomCapacityErrors = isMeetingRoomType(next.type)
+          ? validateMeetingRoomCapacity(next)
+          : null;
+        setFacilityFieldErrors((prevErrors) => {
+          const updated = { ...prevErrors };
+          delete updated.minCapacity;
+          delete updated.maxCapacity;
+          if (meetingRoomCapacityErrors) {
+            if (meetingRoomCapacityErrors.minCapacity) {
+              updated.minCapacity = meetingRoomCapacityErrors.minCapacity;
+            }
+            if (meetingRoomCapacityErrors.maxCapacity) {
+              updated.maxCapacity = meetingRoomCapacityErrors.maxCapacity;
+            }
+          }
+          return updated;
+        });
+      }
+      if (name === "availableFrom" || name === "availableTo" || name === "status") {
+        const availabilityErrors = getAvailabilityValidationErrors(
+          next.availableFrom,
+          next.availableTo,
+          next.status,
+        );
+        setFacilityFieldErrors((prevErrors) => {
+          const updated = { ...prevErrors };
+          delete updated.availableFrom;
+          delete updated.availableTo;
+          if (availabilityErrors.availableFrom) {
+            updated.availableFrom = availabilityErrors.availableFrom;
+          }
+          if (availabilityErrors.availableTo) {
+            updated.availableTo = availabilityErrors.availableTo;
+          }
+          return updated;
+        });
+      }
+      return next;
+    });
+  }
+
+  async function handleFacilitySubmit(e) {
+    e.preventDefault();
+    const { fieldErrors } = validateFacilityForm(facilityForm);
+    setFacilityFieldErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) {
+      setFacilitySaveMessageType("error");
+      setFacilitySaveMessage("Please fix highlighted fields.");
+      return;
+    }
+
+    const structuredLocation = isStructuredLocationType(facilityForm.type);
+    const resolvedLocation = structuredLocation
+      ? `${facilityForm.building} - Floor ${facilityForm.floor} - ${facilityForm.block} Block - Hall ${facilityForm.hallNumber.trim()}`
+      : facilityForm.location.trim();
+    const resourceName = buildResourceName(
+      facilityForm.type.trim(),
+      facilityForm.block,
+      facilityForm.floor,
+      facilityForm.hallNumber,
+      resolvedLocation,
+      facilityForm.meetingRoomNumber.trim(),
+      facilityForm.workspaceNumber.trim(),
+      facilityForm.equipmentName.trim(),
+    );
+    const facilityPayload = {
+      name: resourceName,
+      type: facilityForm.type.trim(),
+      capacity: isLibraryWorkspaceType(facilityForm.type)
+        ? 1
+        : isMeetingRoomType(facilityForm.type)
+          ? null
+        : facilityForm.capacity
+          ? Number(facilityForm.capacity)
+          : null,
+      minCapacity: isMeetingRoomType(facilityForm.type) ? Number(facilityForm.minCapacity) : null,
+      maxCapacity: isMeetingRoomType(facilityForm.type) ? Number(facilityForm.maxCapacity) : null,
+      location: resolvedLocation,
+      building: facilityForm.building,
+      floor: facilityForm.floor,
+      block: facilityForm.block,
+      hallNumber: facilityForm.hallNumber.trim(),
+      meetingRoomNumber: facilityForm.meetingRoomNumber.trim() || null,
+      workspaceNumber: facilityForm.workspaceNumber.trim() || null,
+      equipmentName: facilityForm.equipmentName.trim() || null,
+      audience: facilityForm.audience || null,
+      availableFrom: facilityForm.availableFrom || null,
+      availableTo: facilityForm.availableTo || null,
+      status: facilityForm.status,
+    };
+
+    const identifierValue = getIdentifierValueForResource(facilityPayload);
+    const hasTypeIdentifierDuplicate = facilities.some((resource) => {
+      if (resource.id === editingFacilityId) return false;
+      if (normalizeText(resource.type) !== normalizeText(facilityPayload.type)) return false;
+      return getIdentifierValueForResource(resource) === identifierValue && identifierValue !== "";
+    });
+    if (hasTypeIdentifierDuplicate) {
+      const duplicateMessage = getDuplicateMessageForType(facilityPayload.type);
+      const duplicateField = isEquipmentType(facilityPayload.type)
+        ? "equipmentName"
+        : facilityPayload.type === "Meeting Room"
+          ? "meetingRoomNumber"
+          : facilityPayload.type === "Library Workspace"
+            ? "workspaceNumber"
+            : "hallNumber";
+      setFacilityFieldErrors((prev) => ({ ...prev, [duplicateField]: duplicateMessage }));
+      setFacilitySaveMessageType("error");
+      setFacilitySaveMessage("Please fix highlighted fields.");
+      return;
+    }
+
+    if (facilityForm.status === "ACTIVE") {
+      const newStart = timeToMinutes(facilityForm.availableFrom);
+      const newEnd = timeToMinutes(facilityForm.availableTo);
+      const hasDuplicate = facilities.some((resource) => {
+        if (resource.id === editingFacilityId) return false;
+        if (normalizeText(resource.name) !== normalizeText(resourceName)) return false;
+        if (normalizeText(resource.location) !== normalizeText(resolvedLocation)) return false;
+        const existingStart = timeToMinutes(resource.availableFrom);
+        const existingEnd = timeToMinutes(resource.availableTo);
+        if (existingStart == null || existingEnd == null || newStart == null || newEnd == null) return false;
+        return timesOverlap(existingStart, existingEnd, newStart, newEnd);
+      });
+      if (hasDuplicate) {
+        setFacilityFieldErrors((prev) => ({
+          ...prev,
+          availableTo: "A similar resource already exists for this location and time window",
+        }));
+        setFacilitySaveMessageType("error");
+        setFacilitySaveMessage("Please fix highlighted fields.");
+        return;
+      }
+    }
+
+    try {
+      const url = editingFacilityId
+        ? `${API_BASE_URL}/api/resources/${editingFacilityId}`
+        : `${API_BASE_URL}/api/resources`;
+      const method = editingFacilityId ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(facilityPayload),
+      });
+      if (!res.ok) {
+        let serverMessage = "Could not save facility to database.";
+        try {
+          const data = await res.json();
+          if (typeof data?.message === "string" && data.message.trim()) {
+            serverMessage = data.message.trim();
+          }
+        } catch {
+          // ignore body parse failure
+        }
+        throw new Error(serverMessage);
+      }
+      await loadFacilities();
+      setFacilitySaveMessage(editingFacilityId ? "Facility updated successfully." : "Facility added successfully.");
+      setFacilitySaveMessageType("success");
+      handleFacilityClear();
+    } catch (error) {
+      setFacilitySaveMessageType("error");
+      setFacilitySaveMessage(error instanceof Error ? error.message : "Could not save facility to database.");
+      return;
+    }
+  }
+
+  function handleFacilityClear() {
+    setFacilityForm({
+      type: "",
+      capacity: "",
+      minCapacity: "",
+      maxCapacity: "",
+      meetingRoomNumber: "",
+      workspaceNumber: "",
+      equipmentName: "",
+      location: "",
+      audience: "",
+      building: "",
+      floor: "",
+      block: "",
+      hallNumber: "",
+      availableFrom: "",
+      availableTo: "",
+      status: "ACTIVE",
+    });
+    setFacilityFieldErrors({});
+    setEditingFacilityId(null);
+  }
+
+  function handleFacilityEdit(facility) {
+    setEditingFacilityId(facility.id);
+    const isStructured = isStructuredLocationType(facility.type);
+    setFacilityForm({
+      type: facility.type,
+      capacity: isLibraryWorkspaceType(facility.type)
+        ? "1"
+        : isMeetingRoomType(facility.type)
+          ? ""
+        : facility.capacity != null
+          ? String(facility.capacity)
+          : "",
+      minCapacity: isMeetingRoomType(facility.type) ? String(facility.minCapacity ?? "") : "",
+      maxCapacity: isMeetingRoomType(facility.type) ? String(facility.maxCapacity ?? "") : "",
+      meetingRoomNumber: isMeetingRoomType(facility.type)
+        ? String(facility.meetingRoomNumber ?? "")
+        : "",
+      workspaceNumber: isLibraryWorkspaceType(facility.type)
+        ? String(facility.workspaceNumber ?? "")
+        : "",
+      equipmentName: isEquipmentType(facility.type) ? String(facility.equipmentName ?? "") : "",
+      location: isStructured ? "" : facility.location,
+      audience: facility.audience ?? "",
+      building: facility.building ?? "",
+      floor: facility.floor ?? "",
+      block: facility.block ?? "",
+      hallNumber: facility.hallNumber ?? "",
+      availableFrom: facility.availableFrom ?? "",
+      availableTo: facility.availableTo ?? "",
+      status: facility.status,
+    });
+    setFacilitySaveMessage("");
+    setFacilitySaveMessageType("success");
+    setFacilityFieldErrors({});
+  }
+
+  async function handleFacilityDelete(id) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/resources/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      await loadFacilities();
+      if (editingFacilityId === id) {
+        handleFacilityClear();
+      }
+      setFacilitySaveMessageType("success");
+      setFacilitySaveMessage("Facility deleted.");
+    } catch {
+      setFacilitySaveMessageType("error");
+      setFacilitySaveMessage("Could not delete facility.");
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
@@ -238,8 +899,7 @@ export default function AdminDashboardPage() {
         <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="font-heading text-3xl font-bold text-white sm:text-4xl lg:text-5xl">
-              Welcome back,{" "}
-              <span className="text-cyan-400">{displayName}!</span>
+              Welcome back, <span className="text-cyan-400">{displayName}!</span>
             </h1>
             <p className="mt-3 max-w-xl text-slate-400">
               Manage users, facilities, bookings, maintenance, contact messages, and system settings
@@ -249,6 +909,7 @@ export default function AdminDashboardPage() {
               Academic year 2025/26 · Sample data for demonstration
             </p>
           </div>
+
           <div className="flex shrink-0 flex-wrap gap-3">
             <Link
               to="/"
@@ -278,11 +939,7 @@ export default function AdminDashboardPage() {
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                 {card.label}
               </p>
-              <p
-                className={`mt-2 text-2xl font-bold ${
-                  card.highlight ? "text-cyan-400" : "text-white"
-                }`}
-              >
+              <p className={`mt-2 text-2xl font-bold ${card.highlight ? "text-cyan-400" : "text-white"}`}>
                 {card.value}
               </p>
             </div>
@@ -291,9 +948,7 @@ export default function AdminDashboardPage() {
 
         <div className="mt-12">
           <h2 className="font-heading text-lg font-semibold text-white">Your tools</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Tap a card to open details in a popup.
-          </p>
+          <p className="mt-1 text-sm text-slate-400">Tap a card to open details in a popup.</p>
         </div>
 
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -304,9 +959,7 @@ export default function AdminDashboardPage() {
               onClick={() => setModal(tile.id)}
               className="group w-full rounded-2xl border border-cyan-500/15 bg-slate-900/80 p-6 text-left shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:border-cyan-500/40 hover:shadow-cyan-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
             >
-              <div
-                className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${tile.iconBg}`}
-              >
+              <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${tile.iconBg}`}>
                 {tile.icon}
               </div>
               <h2 className="mt-4 font-heading text-xl font-semibold text-white group-hover:text-cyan-300">
@@ -325,6 +978,7 @@ export default function AdminDashboardPage() {
           <p className="mt-1 text-sm text-slate-400">
             View latest system actions such as bookings, tickets, and updates.
           </p>
+
           {recentActivities.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-600/60 bg-slate-900/50 p-6 text-sm text-slate-500">
               No recent activity yet.
@@ -346,6 +1000,7 @@ export default function AdminDashboardPage() {
           )}
         </section>
       </main>
+
       <SiteFooter />
 
       {modal && activeTile && (
@@ -361,7 +1016,7 @@ export default function AdminDashboardPage() {
             aria-modal="true"
             aria-labelledby="admin-dashboard-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-cyan-500/20 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" ? "max-w-2xl" : "max-w-lg"
+              modal === "settings" ? "max-w-2xl" : "max-w-4xl"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-cyan-500/15 pb-4">
@@ -378,6 +1033,7 @@ export default function AdminDashboardPage() {
                   {activeTile.title}
                 </h2>
               </div>
+
               <button
                 type="button"
                 onClick={() => setModal(null)}
@@ -414,9 +1070,497 @@ export default function AdminDashboardPage() {
                     <strong className="text-slate-200">Manage Bookings</strong> to approve or reject
                     requests.
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No facility editor connected (demo).
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddFacilityFormOpen((prev) => !prev);
+                        setFacilitySaveMessage("");
+                        setFacilitySaveMessageType("success");
+                      }}
+                      className="rounded-full border border-cyan-500/50 bg-cyan-500/10 px-6 py-2.5 text-base font-semibold text-cyan-200 transition hover:bg-cyan-500/20"
+                    >
+                      {isAddFacilityFormOpen ? "Close Add Facilities" : "Add Facilities"}
+                    </button>
                   </div>
+
+                  {isAddFacilityFormOpen ? (
+                    <>
+                      <form
+                        onSubmit={handleFacilitySubmit}
+                        className="flex flex-col gap-4 rounded-3xl border border-cyan-500/30 bg-slate-950/60 p-5 sm:p-6"
+                      >
+                      <div className="space-y-2">
+                        <h4 className="text-base font-semibold text-white">Add or Update Facility</h4>
+                        <p className="text-xs text-slate-400">
+                          Fill in details and click save. Fields marked with * are required.
+                        </p>
+                      </div>
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-300">
+                            Type <span className="text-red-300">*</span>
+                          </span>
+                          <select
+                            name="type"
+                            value={facilityForm.type}
+                            onChange={handleFacilityInputChange}
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                            required
+                          >
+                            <option value="">Select facility type</option>
+                            <option value="Lecture Hall">Lecture Hall</option>
+                            <option value="Computer Lab">Computer Lab</option>
+                            <option value="Library Workspace">Library Workspace</option>
+                            <option value="Meeting Room">Meeting Room</option>
+                            <option value="Equipment">Equipment</option>
+                          </select>
+                          {facilityFieldErrors.type ? (
+                            <p className="text-xs font-medium text-red-300">{facilityFieldErrors.type}</p>
+                          ) : null}
+                        </label>
+                        {isMeetingRoomType(facilityForm.type) ? (
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="space-y-2">
+                              <span className="text-sm font-medium text-slate-300">
+                                Minimum Capacity <span className="text-red-300">*</span>
+                              </span>
+                              <input
+                                type="number"
+                                min={getMeetingRoomCapacityRange(facilityForm.audience)?.min ?? 1}
+                                max={getMeetingRoomCapacityRange(facilityForm.audience)?.max ?? 8}
+                                step="1"
+                                name="minCapacity"
+                                value={facilityForm.minCapacity}
+                                onChange={handleFacilityInputChange}
+                                placeholder="e.g. 5"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                              />
+                              {facilityFieldErrors.minCapacity ? (
+                                <p className="text-xs font-medium text-red-300">
+                                  {facilityFieldErrors.minCapacity}
+                                </p>
+                              ) : null}
+                            </label>
+                            <label className="space-y-2">
+                              <span className="text-sm font-medium text-slate-300">
+                                Maximum Capacity <span className="text-red-300">*</span>
+                              </span>
+                              <input
+                                type="number"
+                                min={getMeetingRoomCapacityRange(facilityForm.audience)?.min ?? 1}
+                                max={getMeetingRoomCapacityRange(facilityForm.audience)?.max ?? 8}
+                                step="1"
+                                name="maxCapacity"
+                                value={facilityForm.maxCapacity}
+                                onChange={handleFacilityInputChange}
+                                placeholder="e.g. 8"
+                                className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                              />
+                              {facilityFieldErrors.maxCapacity ? (
+                                <p className="text-xs font-medium text-red-300">
+                                  {facilityFieldErrors.maxCapacity}
+                                </p>
+                              ) : null}
+                            </label>
+                            {facilityForm.audience === "Student" ? (
+                              <p className="sm:col-span-2 text-xs text-slate-500">Allowed range: 5–8</p>
+                            ) : null}
+                            {facilityForm.audience === "Lecturer" ? (
+                              <p className="sm:col-span-2 text-xs text-slate-500">Allowed range: 1–8</p>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <label className="space-y-2">
+                            <span className="text-sm font-medium text-slate-300">Capacity</span>
+                            <input
+                              type="number"
+                              min={getCapacityLimit(facilityForm.type)?.min ?? 1}
+                              max={getCapacityLimit(facilityForm.type)?.max}
+                              name="capacity"
+                              value={facilityForm.capacity}
+                              onChange={handleFacilityInputChange}
+                              disabled={isLibraryWorkspaceType(facilityForm.type)}
+                              placeholder={
+                                facilityForm.type === "Lecture Hall"
+                                  ? "1 - 500"
+                                  : facilityForm.type === "Computer Lab"
+                                    ? "1 - 60"
+                                    : isLibraryWorkspaceType(facilityForm.type)
+                                      ? "Fixed at 1 per workspace"
+                                      : "e.g. 40"
+                              }
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                            />
+                            {isLibraryWorkspaceType(facilityForm.type) ? (
+                              <p className="text-xs text-slate-500">
+                                Library Workspace capacity is fixed to 1.
+                              </p>
+                            ) : null}
+                            {getCapacityLimit(facilityForm.type) ? (
+                              <p className="text-xs text-slate-500">
+                                Allowed range: {getCapacityLimit(facilityForm.type).min}-
+                                {getCapacityLimit(facilityForm.type).max}
+                              </p>
+                            ) : null}
+                            {facilityFieldErrors.capacity ? (
+                              <p className="text-xs font-medium text-red-300">{facilityFieldErrors.capacity}</p>
+                            ) : null}
+                          </label>
+                        )}
+                      </div>
+
+                      {isMeetingRoomType(facilityForm.type) ? (
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-300">
+                            Meeting Room Number <span className="text-red-300">*</span>
+                          </span>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            name="meetingRoomNumber"
+                            value={facilityForm.meetingRoomNumber}
+                            onChange={handleFacilityInputChange}
+                            placeholder="e.g. 101"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                            required
+                          />
+                          {facilityFieldErrors.meetingRoomNumber ? (
+                            <p className="text-xs font-medium text-red-300">
+                              {facilityFieldErrors.meetingRoomNumber}
+                            </p>
+                          ) : null}
+                        </label>
+                      ) : null}
+
+                      {isLibraryWorkspaceType(facilityForm.type) ? (
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-300">
+                            Workspace Number <span className="text-red-300">*</span>
+                          </span>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            name="workspaceNumber"
+                            value={facilityForm.workspaceNumber}
+                            onChange={handleFacilityInputChange}
+                            placeholder="e.g. 22"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                            required
+                          />
+                          {facilityFieldErrors.workspaceNumber ? (
+                            <p className="text-xs font-medium text-red-300">
+                              {facilityFieldErrors.workspaceNumber}
+                            </p>
+                          ) : null}
+                        </label>
+                      ) : null}
+
+                      {isEquipmentType(facilityForm.type) ? (
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-300">
+                            Equipment Name <span className="text-red-300">*</span>
+                          </span>
+                          <input
+                            type="text"
+                            name="equipmentName"
+                            value={facilityForm.equipmentName}
+                            onChange={handleFacilityInputChange}
+                            placeholder="e.g. Projector"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                            required
+                          />
+                          {facilityFieldErrors.equipmentName ? (
+                            <p className="text-xs font-medium text-red-300">
+                              {facilityFieldErrors.equipmentName}
+                            </p>
+                          ) : null}
+                        </label>
+                      ) : null}
+
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-slate-300">
+                          Location <span className="text-red-300">*</span>
+                        </span>
+                        {isStructuredLocationType(facilityForm.type) ? (
+                          <div className="grid gap-4 sm:grid-cols-4">
+                            <select
+                              name="building"
+                              value={facilityForm.building}
+                              onChange={handleFacilityInputChange}
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition focus:border-cyan-400"
+                              required
+                            >
+                              <option value="">Select building</option>
+                              <option value="Main Building">Main Building</option>
+                              <option value="New Building">New Building</option>
+                            </select>
+                            <select
+                              name="floor"
+                              value={facilityForm.floor}
+                              onChange={handleFacilityInputChange}
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition focus:border-cyan-400"
+                              required
+                              disabled={!facilityForm.building}
+                            >
+                              <option value="">Select floor</option>
+                              {(facilityForm.building === "Main Building"
+                                ? MAIN_BUILDING_FLOORS
+                                : facilityForm.building === "New Building"
+                                  ? NEW_BUILDING_FLOORS
+                                  : []
+                              ).map((floor) => (
+                                <option key={floor} value={floor}>
+                                  Floor {floor}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              name="block"
+                              value={facilityForm.block}
+                              onChange={handleFacilityInputChange}
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition focus:border-cyan-400"
+                              required
+                              disabled={!facilityForm.floor}
+                            >
+                              <option value="">Select block</option>
+                              {(facilityForm.building === "Main Building"
+                                ? ["A", "B"]
+                                : facilityForm.building === "New Building"
+                                  ? ["F", "G"]
+                                  : []
+                              ).map((block) => (
+                                <option key={block} value={block}>
+                                  {block} Block
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              name="hallNumber"
+                              value={facilityForm.hallNumber}
+                              onChange={handleFacilityInputChange}
+                              placeholder="e.g. 1"
+                              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                              required
+                              disabled={!facilityForm.block}
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            type="text"
+                            name="location"
+                            value={facilityForm.location}
+                            onChange={handleFacilityInputChange}
+                            placeholder="e.g. New Building - Floor 4"
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400"
+                            required
+                          />
+                        )}
+                        {facilityFieldErrors.location ? (
+                          <p className="text-xs font-medium text-red-300">{facilityFieldErrors.location}</p>
+                        ) : null}
+                        {facilityFieldErrors.hallNumber ? (
+                          <p className="text-xs font-medium text-red-300">{facilityFieldErrors.hallNumber}</p>
+                        ) : null}
+                      </label>
+
+                      {needsAudienceSelection(facilityForm.type) ? (
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-300">
+                            Select user type <span className="text-red-300">*</span>
+                          </span>
+                          <select
+                            name="audience"
+                            value={facilityForm.audience}
+                            onChange={handleFacilityInputChange}
+                            className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition focus:border-cyan-400"
+                            required
+                          >
+                            <option value="">
+                              {isEquipmentType(facilityForm.type)
+                                ? "Select Lecturer or Technician"
+                                : "Select Student or Lecturer"}
+                            </option>
+                            {getAudienceOptionsForType(facilityForm.type).map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                          {facilityFieldErrors.audience ? (
+                            <p className="text-xs font-medium text-red-300">{facilityFieldErrors.audience}</p>
+                          ) : null}
+                        </label>
+                      ) : null}
+
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-300">
+                            Availability window (from)
+                          </span>
+                          <input
+                            type="time"
+                            name="availableFrom"
+                            value={facilityForm.availableFrom}
+                            onChange={handleFacilityInputChange}
+                            min="08:00"
+                            max="20:00"
+                            disabled={facilityForm.status === "OUT_OF_SERVICE"}
+                            className={`w-full rounded-xl border bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition ${
+                              facilityFieldErrors.availableFrom
+                                ? "border-red-400 focus:border-red-300"
+                                : "border-slate-700 focus:border-cyan-400"
+                            }`}
+                          />
+                          {facilityFieldErrors.availableFrom ? (
+                            <p className="text-xs font-medium text-red-300">
+                              {facilityFieldErrors.availableFrom}
+                            </p>
+                          ) : null}
+                        </label>
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-slate-300">
+                            Availability window (to)
+                          </span>
+                          <input
+                            type="time"
+                            name="availableTo"
+                            value={facilityForm.availableTo}
+                            onChange={handleFacilityInputChange}
+                            min="08:00"
+                            max="20:00"
+                            disabled={facilityForm.status === "OUT_OF_SERVICE"}
+                            className={`w-full rounded-xl border bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition ${
+                              facilityFieldErrors.availableTo
+                                ? "border-red-400 focus:border-red-300"
+                                : "border-slate-700 focus:border-cyan-400"
+                            }`}
+                          />
+                          {facilityFieldErrors.availableTo ? (
+                            <p className="text-xs font-medium text-red-300">{facilityFieldErrors.availableTo}</p>
+                          ) : null}
+                        </label>
+                      </div>
+
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-slate-300">Status</span>
+                        <select
+                          name="status"
+                          value={facilityForm.status}
+                          onChange={handleFacilityInputChange}
+                          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-base text-slate-100 outline-none transition focus:border-cyan-400"
+                        >
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="OUT_OF_SERVICE">OUT_OF_SERVICE</option>
+                        </select>
+                        <p className="text-xs text-slate-500">
+                          Use `OUT_OF_SERVICE` when the resource cannot be booked.
+                        </p>
+                        {facilityForm.status === "OUT_OF_SERVICE" ? (
+                          <p className="text-xs font-medium text-amber-300">
+                            Availability is disabled while status is OUT_OF_SERVICE.
+                          </p>
+                        ) : null}
+                      </label>
+
+                      <div className="flex flex-wrap items-center gap-3 border-t border-slate-800 pt-4">
+                        <button
+                          type="submit"
+                          className="rounded-full bg-cyan-500 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+                        >
+                          {editingFacilityId ? "Update Facility" : "Save Facility"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleFacilityClear}
+                          className="rounded-full border border-slate-600 px-5 py-2 text-sm font-semibold text-slate-300 transition hover:border-slate-400 hover:text-white"
+                        >
+                          Clear
+                        </button>
+                        <span className="text-xs text-slate-500">
+                          You can edit or delete from the Existing Facilities section.
+                        </span>
+                      </div>
+
+                      {facilitySaveMessage ? (
+                        <p
+                          className={`text-sm font-medium ${
+                            facilitySaveMessageType === "error" ? "text-red-300" : "text-emerald-300"
+                          }`}
+                        >
+                          {facilitySaveMessage}
+                        </p>
+                      ) : null}
+                      </form>
+                    </>
+                  ) : (
+                    <div className="rounded-3xl border border-cyan-500/20 bg-slate-950/60 p-5 sm:p-6">
+                      <div className="flex items-center justify-between gap-3">
+                        <h4 className="text-base font-semibold text-white">Existing Facilities</h4>
+                        <span className="text-xs text-slate-500">
+                          {facilities.length} {facilities.length === 1 ? "item" : "items"}
+                        </span>
+                      </div>
+                      {isFacilitiesLoading ? (
+                        <p className="mt-3 text-sm text-slate-400">Loading facilities...</p>
+                      ) : facilities.length === 0 ? (
+                        <div className="mt-3 rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 p-4">
+                          <p className="text-sm text-slate-300">No facilities added yet.</p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Open Add Facilities to create your first facility.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-4 grid gap-3">
+                          {facilities.map((facility) => (
+                            <article
+                              key={facility.id}
+                              className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4"
+                            >
+                              <p className="text-sm font-semibold text-cyan-200">{facility.type}</p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                Capacity: {facility.capacity || "N/A"} • Location: {facility.location}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400">
+                                Availability: {facility.availableFrom} - {facility.availableTo}
+                              </p>
+                              <p className="mt-1 text-xs font-medium text-slate-300">
+                                Status: {facility.status}
+                              </p>
+                              {facility.audience ? (
+                                <p className="mt-1 text-xs font-medium text-slate-300">
+                                  User Type: {facility.audience}
+                                </p>
+                              ) : null}
+                              <div className="mt-3 flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsAddFacilityFormOpen(true);
+                                    handleFacilityEdit(facility);
+                                  }}
+                                  className="rounded-full border border-cyan-500/40 px-3 py-1 text-xs font-semibold text-cyan-300 transition hover:bg-cyan-500/10"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleFacilityDelete(facility.id)}
+                                  className="rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-300 transition hover:bg-red-500/10"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -457,6 +1601,7 @@ export default function AdminDashboardPage() {
                     form. Assign ownership, mark priority, and track follow-up actions from this
                     queue when your backend API is connected.
                   </p>
+
                   {contactMessages.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
                       No contact messages yet.
@@ -494,6 +1639,7 @@ export default function AdminDashboardPage() {
                       ))}
                     </div>
                   )}
+
                   {selectedMessage ? (
                     <div className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
                       <div className="flex items-start justify-between gap-3">

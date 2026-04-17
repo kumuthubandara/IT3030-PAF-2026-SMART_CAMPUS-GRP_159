@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 
@@ -27,8 +28,14 @@ const topics = [
 ];
 
 export default function MaintenancePage() {
+  const { user } = useAuth();
+  if (!user) {
+    return <Navigate to="/login?redirect=/maintenance" replace />;
+  }
+
   const fallbackImage =
     "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='400'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop offset='0%' stop-color='%230b1220'/><stop offset='100%' stop-color='%2316485f'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g)'/><text x='50%' y='52%' fill='%23a5f3fc' font-family='Arial' font-size='40' text-anchor='middle'>Smart Campus Maintenance</text></svg>";
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
       <SiteHeader />

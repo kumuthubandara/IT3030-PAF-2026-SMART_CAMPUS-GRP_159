@@ -4,6 +4,7 @@ import com.sliit.backend.activity.RecentActivityService;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -25,6 +26,7 @@ public class ContactMessageService {
         entity.setSubject(request.getSubject().trim());
         entity.setMessage(request.getMessage().trim());
         entity.setStatus("NEW");
+        entity.setCreatedAt(LocalDateTime.now());
         ContactMessage saved = repository.save(entity);
         activityService.add("CONTACT_MESSAGE", "New contact message from " + saved.getName() + ": " + saved.getSubject());
         return saved;
