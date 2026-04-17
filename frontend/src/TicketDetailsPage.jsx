@@ -1,3 +1,6 @@
+/**
+ * Single ticket view: comments, attachments, and staff-only assign/status controls.
+ */
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
@@ -6,6 +9,20 @@ import SiteFooter from "./SiteFooter";
 import { backendUsernameForUser, ticketsApi } from "./api/ticketsApi";
 
 const STATUS_FLOW = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "REJECTED"];
+const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
+
+function ticketsHubPath(role) {
+  const r = String(role ?? "").trim().toLowerCase();
+  if (r === "student") return "/student/maintenance";
+  if (r === "lecturer") return "/lecturer/maintenance";
+  return "/tickets/manage";
+}
+
+function ticketsHubBackLabel(role) {
+  const r = String(role ?? "").trim().toLowerCase();
+  if (r === "student" || r === "lecturer") return "← Back to my tickets";
+  return "← Back to ticket queue";
+}
 
 export default function TicketDetailsPage() {
   const { id } = useParams();
@@ -25,8 +42,14 @@ export default function TicketDetailsPage() {
   const role = String(user?.role ?? "").trim().toLowerCase();
   const isAdmin = role === "administrator" || role === "admin";
   const isTechnician = role === "technician" || role === "tech";
+  const isStudent = role === "student";
+  const isLecturer = role === "lecturer";
   const canUpdateStatus = isAdmin || isTechnician;
+  /** Backend allows USER + ADMIN to POST attachments; technicians are read-only here. */
+  const showAttachmentUpload = isStudent || isLecturer || isAdmin;
   const fileInputRef = useRef(null);
+  const [statusDraft, setStatusDraft] = useState("OPEN");
+  const [priorityDraft, setPriorityDraft] = useState("MEDIUM");
 
   function handleLocalImage(file) {
     if (!file || !file.type.startsWith("image/")) {
@@ -46,6 +69,8 @@ export default function TicketDetailsPage() {
       setError("");
       const data = await ticketsApi.getTicket(id, user);
       setTicket(data);
+      setStatusDraft(data.status);
+      setPriorityDraft(data.priority);
       const activityData = await ticketsApi.listActivities(id, user);
       setActivities(Array.isArray(activityData) ? activityData : []);
     } catch (e) {
@@ -59,16 +84,26 @@ export default function TicketDetailsPage() {
     loadTicket();
   }, [id, user]);
 
-  async function handleStatusChange(nextStatus) {
+  async function handleStatusApply() {
     try {
       setError("");
-      await ticketsApi.updateStatusWithNotes(id, nextStatus, resolutionNotes, user);
-      if (nextStatus === "RESOLVED" || nextStatus === "CLOSED") {
+      await ticketsApi.updateStatusWithNotes(id, statusDraft, resolutionNotes, user);
+      if (statusDraft === "RESOLVED" || statusDraft === "CLOSED") {
         setResolutionNotes("");
       }
       await loadTicket();
     } catch (e) {
       setError(e.message || "Status update failed.");
+    }
+  }
+
+  async function handlePrioritySave() {
+    try {
+      setError("");
+      await ticketsApi.updatePriority(id, priorityDraft, user);
+      await loadTicket();
+    } catch (e) {
+      setError(e.message || "Priority update failed.");
     }
   }
 
@@ -140,8 +175,8 @@ export default function TicketDetailsPage() {
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <Link to="/tickets" className="text-sm text-cyan-300 hover:text-cyan-200">
-            Back to tickets
+          <Link to={ticketsHubPath(role)} className="text-sm text-cyan-300 hover:text-cyan-200">
+            {ticketsHubBackLabel(role)}
           </Link>
         </div>
 
@@ -151,6 +186,7 @@ export default function TicketDetailsPage() {
         {ticket ? (
           <div className="space-y-6">
             <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
+              <p className="text-xs font-medium uppercase tracking-wide text-cyan-400">Ticket #{ticket.id}</p>
               <h1 className="font-heading text-2xl font-bold text-white">{ticket.title}</h1>
               <p className="mt-2 text-slate-300">{ticket.description}</p>
               <p className="mt-3 text-sm text-slate-400">
@@ -158,6 +194,7 @@ export default function TicketDetailsPage() {
               </p>
               <p className="text-xs text-slate-500">
                 Location: {ticket.location} | Assigned: {ticket.assignedTechnician || "Not assigned"}
+                {isTechnician && ticket.assignedTechnician === apiUsername ? " (you)" : ""}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Age: {ticket.ageHours}h
@@ -171,109 +208,159 @@ export default function TicketDetailsPage() {
               ) : null}
             </section>
 
-            {canUpdateStatus ? (
-              <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
-                <h2 className="mb-3 text-lg font-semibold text-cyan-300">Update Status</h2>
-                <textarea
-                  value={resolutionNotes}
-                  onChange={(e) => setResolutionNotes(e.target.value)}
-                  className="mb-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                  rows={2}
-                  placeholder="Resolution notes (required for RESOLVED/CLOSED)"
-                />
-                <div className="flex flex-wrap gap-2">
-                  {STATUS_FLOW.map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => handleStatusChange(status)}
-                      className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm hover:border-cyan-400"
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
             {isAdmin ? (
               <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
-                <h2 className="mb-3 text-lg font-semibold text-cyan-300">Assign Technician</h2>
-                <form onSubmit={handleAssign} className="flex flex-wrap gap-2">
-                  <input
-                    value={technician}
-                    onChange={(e) => setTechnician(e.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                    placeholder="technician username"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950"
-                  >
+                <h2 className="mb-3 text-lg font-semibold text-cyan-300">Assign technician</h2>
+                <form onSubmit={handleAssign} className="flex flex-wrap items-end gap-3">
+                  <label className="grid gap-1 text-sm text-slate-300">
+                    Technician
+                    <select
+                      value={technician}
+                      onChange={(e) => setTechnician(e.target.value)}
+                      className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                    >
+                      <option value="tech1">tech1 — field technician</option>
+                    </select>
+                  </label>
+                  <button type="submit" className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950">
                     Assign
                   </button>
                 </form>
               </section>
             ) : null}
 
-            <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
-              <h2 className="mb-3 text-lg font-semibold text-cyan-300">Attachments (max 3)</h2>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  const file = e.dataTransfer.files?.[0];
-                  handleLocalImage(file);
-                }}
-                className={`mb-4 w-full rounded-lg border-2 border-dashed px-4 py-6 text-sm transition ${
-                  isDragging
-                    ? "border-cyan-300 bg-cyan-500/10 text-cyan-200"
-                    : "border-slate-600 bg-slate-950/70 text-slate-300 hover:border-cyan-500/60"
-                }`}
-              >
-                Drag and drop image here, or click to select
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleLocalImage(e.target.files?.[0])}
-              />
-              <form onSubmit={handleAttachment} className="mb-4 flex flex-wrap gap-2">
-                <input
-                  value={imageUrl}
-                  onChange={(e) => {
-                    setImageUrl(e.target.value);
-                    setImagePreview(e.target.value);
-                  }}
-                  className="min-w-[280px] flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
-                  placeholder="Paste image URL"
-                  required
+            {canUpdateStatus ? (
+              <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
+                <h2 className="mb-1 text-lg font-semibold text-cyan-300">Update status</h2>
+                <p className="mb-3 text-xs text-slate-500">
+                  {isTechnician ? "Technicians may only update tickets assigned to them." : "Administrators may set any workflow state."}
+                </p>
+                <textarea
+                  value={resolutionNotes}
+                  onChange={(e) => setResolutionNotes(e.target.value)}
+                  className="mb-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                  rows={3}
+                  placeholder="Resolution notes (required when moving to RESOLVED or CLOSED)"
                 />
-                <button type="submit" className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950">
-                  Add Image
-                </button>
-              </form>
-              {imagePreview ? (
-                <div className="mb-4">
-                  <img src={imagePreview} alt="Attachment preview" className="max-h-52 rounded-lg border border-slate-700 object-cover" />
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="grid gap-1 text-sm text-slate-300">
+                    Status
+                    <select
+                      value={statusDraft}
+                      onChange={(e) => setStatusDraft(e.target.value)}
+                      className="min-w-[200px] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                    >
+                      {STATUS_FLOW.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <button
                     type="button"
-                    onClick={handleRemoveSelectedImage}
-                    className="mt-2 rounded-md border border-red-400/50 px-3 py-1 text-xs text-red-200 hover:bg-red-500/10"
+                    onClick={() => void handleStatusApply()}
+                    className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950"
                   >
-                    Remove selected image
+                    Update status
                   </button>
                 </div>
-              ) : null}
+              </section>
+            ) : null}
+
+            {isAdmin ? (
+              <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
+                <h2 className="mb-3 text-lg font-semibold text-cyan-300">Ticket priority</h2>
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="grid gap-1 text-sm text-slate-300">
+                    Priority
+                    <select
+                      value={priorityDraft}
+                      onChange={(e) => setPriorityDraft(e.target.value)}
+                      className="min-w-[160px] rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                    >
+                      {PRIORITIES.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void handlePrioritySave()}
+                    className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950"
+                  >
+                    Save priority
+                  </button>
+                </div>
+              </section>
+            ) : null}
+
+            <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
+              <h2 className="mb-3 text-lg font-semibold text-cyan-300">Attachments (max 3)</h2>
+              {showAttachmentUpload ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      handleLocalImage(file);
+                    }}
+                    className={`mb-4 w-full rounded-lg border-2 border-dashed px-4 py-6 text-sm transition ${
+                      isDragging
+                        ? "border-cyan-300 bg-cyan-500/10 text-cyan-200"
+                        : "border-slate-600 bg-slate-950/70 text-slate-300 hover:border-cyan-500/60"
+                    }`}
+                  >
+                    Drag and drop image here, or click to select
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleLocalImage(e.target.files?.[0])}
+                  />
+                  <form onSubmit={handleAttachment} className="mb-4 flex flex-wrap gap-2">
+                    <input
+                      value={imageUrl}
+                      onChange={(e) => {
+                        setImageUrl(e.target.value);
+                        setImagePreview(e.target.value);
+                      }}
+                      className="min-w-[280px] flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2"
+                      placeholder="Paste image URL"
+                      required
+                    />
+                    <button type="submit" className="rounded-lg bg-cyan-400 px-4 py-2 font-semibold text-slate-950">
+                      Add Image
+                    </button>
+                  </form>
+                  {imagePreview ? (
+                    <div className="mb-4">
+                      <img src={imagePreview} alt="Attachment preview" className="max-h-52 rounded-lg border border-slate-700 object-cover" />
+                      <button
+                        type="button"
+                        onClick={handleRemoveSelectedImage}
+                        className="mt-2 rounded-md border border-red-400/50 px-3 py-1 text-xs text-red-200 hover:bg-red-500/10"
+                      >
+                        Remove selected image
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="mb-4 text-sm text-slate-400">Uploading additional images is limited to the ticket reporter or an administrator.</p>
+              )}
               <div className="grid gap-3 md:grid-cols-3">
                 {(ticket.attachments ?? []).map((attachment) => (
                   <a
@@ -340,10 +427,10 @@ export default function TicketDetailsPage() {
 
             <div className="flex justify-end">
               <Link
-                to="/tickets"
+                to={ticketsHubPath(role)}
                 className="rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300"
               >
-                End / Back to Tickets
+                End / back to list
               </Link>
             </div>
           </div>

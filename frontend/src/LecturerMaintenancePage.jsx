@@ -85,7 +85,9 @@ export default function LecturerMaintenancePage() {
           <Link to="/dashboard" className="text-slate-400 hover:text-cyan-300">Dashboard</Link>
           <Link to="/facilities" className="text-slate-400 hover:text-cyan-300">Bookings</Link>
           <span className="font-semibold text-cyan-400">Maintenance</span>
-          <Link to="/tickets/manage" className="text-slate-400 hover:text-cyan-300">Reports</Link>
+          <a href="#ticket-overview" className="text-slate-400 hover:text-cyan-300">
+            My list
+          </a>
           <button
             type="button"
             onClick={() => {
@@ -115,7 +117,7 @@ export default function LecturerMaintenancePage() {
         </section>
 
         <section id="ticket-overview" className="mt-10">
-          <h2 className="font-heading text-lg font-semibold text-cyan-300">📋 Ticket Overview</h2>
+          <h2 className="font-heading text-lg font-semibold text-cyan-300">📋 My submitted tickets</h2>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <label className="flex flex-1 items-center gap-2 rounded-xl border border-slate-600 bg-slate-900/80 px-3 py-2">
               <span className="text-slate-500">🔍</span>

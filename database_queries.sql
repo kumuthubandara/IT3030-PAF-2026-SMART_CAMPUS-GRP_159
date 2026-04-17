@@ -1,6 +1,7 @@
--- Smart Campus Maintenance Module - MySQL Query Pack
--- Database: smart_campus_db
--- Note: Tables are auto-created by JPA (ddl-auto=update). These queries are for testing/reporting.
+-- Smart Campus Maintenance Module — legacy MySQL query pack (optional)
+-- The Spring Boot backend now uses MongoDB (Atlas or local). Use Compass / mongosh for ad-hoc queries.
+-- Database: smart_campus_db (historical)
+-- Note: These scripts do not apply to the current MongoDB deployment.
 
 USE smart_campus_db;
 

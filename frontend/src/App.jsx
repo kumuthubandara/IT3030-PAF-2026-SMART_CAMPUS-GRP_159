@@ -16,6 +16,7 @@ import StudentSubmitTicketPage from "./StudentSubmitTicketPage";
 import TicketEntryRoute from "./TicketEntryRoute";
 import LecturerSubmitTicketPage from "./LecturerSubmitTicketPage";
 import LecturerMaintenancePage from "./LecturerMaintenancePage";
+import TicketsManageRoute from "./TicketsManageRoute";
 
 export default function App() {
   return (
@@ -32,7 +33,7 @@ export default function App() {
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/settings" element={<StudentSettingsRoute />} />
         <Route path="/tickets" element={<TicketEntryRoute />} />
-        <Route path="/tickets/manage" element={<TicketsPage />} />
+        <Route path="/tickets/manage" element={<TicketsManageRoute />} />
         <Route path="/tickets/:id" element={<TicketDetailsPage />} />
         <Route path="/student/maintenance" element={<StudentEmergencyDashboardPage />} />
         <Route path="/student/submit-ticket" element={<StudentSubmitTicketPage />} />

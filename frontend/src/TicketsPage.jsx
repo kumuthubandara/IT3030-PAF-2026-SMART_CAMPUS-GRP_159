@@ -1,3 +1,6 @@
+/**
+ * Staff ticket queue: filters, export hook, and optional create UI (disabled for this project).
+ */
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
@@ -33,7 +36,9 @@ export default function TicketsPage() {
 
   const role = String(user?.role ?? "").trim().toLowerCase();
   const isAdmin = role === "administrator" || role === "admin";
+  const isTechnician = role === "technician" || role === "tech";
   const isStudent = role === "student";
+  // Product rule: admins do not originate tickets here; students/lecturers use dedicated flows.
   const canCreate = false;
 
   async function loadTickets() {
@@ -117,13 +122,22 @@ export default function TicketsPage() {
   const assignedCount = tickets.length;
   const inProgressCount = tickets.filter((t) => t.status === "IN_PROGRESS").length;
   const slaRiskCount = tickets.filter((t) => t.slaBreached).length;
+  const highActiveCount = tickets.filter((t) => t.priority === "HIGH" && !["CLOSED", "REJECTED"].includes(t.status)).length;
+  const openCount = tickets.filter((t) => t.status === "OPEN").length;
+  const closedCount = tickets.filter((t) => t.status === "CLOSED").length;
+
+  const pageHeading = isAdmin
+    ? "📊 Ticket dashboard"
+    : isTechnician
+      ? "🛠️ My assigned tickets"
+      : "Ticket management";
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100">
       <SiteHeader />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="font-heading text-3xl font-bold text-white">Ticket Management</h1>
+          <h1 className="font-heading text-3xl font-bold text-white">{pageHeading}</h1>
           <div className="flex items-center gap-3">
             {isAdmin ? (
               <button
@@ -141,6 +155,23 @@ export default function TicketsPage() {
         </div>
 
         {error ? <p className="mb-4 rounded-lg bg-red-500/15 p-3 text-red-200">{error}</p> : null}
+
+        {isAdmin ? (
+          <section className="mb-6 grid gap-3 sm:grid-cols-3">
+            <article className="rounded-xl border border-red-500/30 bg-red-950/25 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-red-200/90">High priority (active)</p>
+              <p className="mt-1 text-3xl font-bold text-red-200">{highActiveCount}</p>
+            </article>
+            <article className="rounded-xl border border-amber-500/25 bg-amber-950/20 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-amber-100/90">Open</p>
+              <p className="mt-1 text-3xl font-bold text-amber-200">{openCount}</p>
+            </article>
+            <article className="rounded-xl border border-emerald-500/25 bg-emerald-950/20 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-emerald-100/90">Closed</p>
+              <p className="mt-1 text-3xl font-bold text-emerald-200">{closedCount}</p>
+            </article>
+          </section>
+        ) : null}
 
         {canCreate ? (
           <section className="mb-8 rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
@@ -245,10 +276,10 @@ export default function TicketsPage() {
           </div>
         </section>
 
-        {role === "technician" || role === "tech" ? (
+        {isTechnician ? (
           <section className="mb-6 grid gap-3 md:grid-cols-3">
             <article className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
-              <p className="text-xs text-slate-400">My Assigned Tickets</p>
+              <p className="text-xs text-slate-400">Assigned to me</p>
               <p className="mt-1 text-2xl font-bold text-cyan-300">{assignedCount}</p>
             </article>
             <article className="rounded-xl border border-cyan-500/20 bg-slate-900/70 p-4">
@@ -263,7 +294,7 @@ export default function TicketsPage() {
         ) : null}
 
         <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
-          <h2 className="mb-4 text-lg font-semibold text-cyan-300">Tickets</h2>
+          <h2 className="mb-4 text-lg font-semibold text-cyan-300">{isTechnician ? "Queue" : "All tickets"}</h2>
           {loading ? <p className="text-slate-300">Loading tickets...</p> : null}
           {!loading && tickets.length === 0 ? <p className="text-slate-300">No tickets yet.</p> : null}
           <div className="space-y-3">
@@ -274,7 +305,10 @@ export default function TicketsPage() {
                 className="block rounded-lg border border-slate-700 bg-slate-950 p-4 hover:border-cyan-400/60"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold text-white">{ticket.title}</p>
+                  <p className="font-semibold text-white">
+                    <span className="mr-2 font-mono text-xs text-slate-500">#{ticket.id}</span>
+                    {ticket.title}
+                  </p>
                   <div className="flex items-center gap-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs ${priorityBadge(ticket.priority)}`}>
                       {ticket.priority}

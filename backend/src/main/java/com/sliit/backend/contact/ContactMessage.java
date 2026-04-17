@@ -9,23 +9,16 @@ import java.time.LocalDateTime;
 public class ContactMessage {
 
     @Id
-    private String id;
-
+    private Long id;
     private String name;
-
     private String email;
-
     private String phone;
-
     private String subject;
-
     private String message;
-
     private String status;
-
     private LocalDateTime createdAt;
 
-    void onCreate() {
+    public void onCreateDefaults() {
         if (status == null || status.isBlank()) {
             status = "NEW";
         }
@@ -34,11 +27,11 @@ public class ContactMessage {
         }
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

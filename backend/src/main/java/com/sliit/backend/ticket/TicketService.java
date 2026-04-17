@@ -1,5 +1,6 @@
 package com.sliit.backend.ticket;
 
+import com.sliit.backend.mongo.MongoSequenceService;
 import com.sliit.backend.ticket.dto.AttachmentUploadRequest;
 import com.sliit.backend.ticket.dto.CommentRequest;
 import com.sliit.backend.ticket.dto.CreateTicketRequest;
@@ -7,9 +8,9 @@ import com.sliit.backend.ticket.exception.BadRequestException;
 import com.sliit.backend.ticket.exception.NotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -18,26 +19,30 @@ import java.util.Objects;
 @Service
 public class TicketService {
 
+    private static final String SEQ_TICKETS = "tickets";
+    private static final String SEQ_COMMENTS = "ticket_comments";
+    private static final String SEQ_ATTACHMENTS = "ticket_attachments";
+    private static final String SEQ_ACTIVITIES = "ticket_activities";
+    private static final String SEQ_NOTIFICATIONS = "ticket_notifications";
+
     private final TicketRepository ticketRepository;
-    private final TicketCommentRepository commentRepository;
-    private final TicketAttachmentRepository attachmentRepository;
-    private final TicketNotificationRepository notificationRepository;
     private final TicketActivityRepository activityRepository;
+    private final TicketNotificationRepository notificationRepository;
+    private final MongoSequenceService sequenceService;
 
     public TicketService(TicketRepository ticketRepository,
-                         TicketCommentRepository commentRepository,
-                         TicketAttachmentRepository attachmentRepository,
+                         TicketActivityRepository activityRepository,
                          TicketNotificationRepository notificationRepository,
-                         TicketActivityRepository activityRepository) {
+                         MongoSequenceService sequenceService) {
         this.ticketRepository = ticketRepository;
-        this.commentRepository = commentRepository;
-        this.attachmentRepository = attachmentRepository;
-        this.notificationRepository = notificationRepository;
         this.activityRepository = activityRepository;
+        this.notificationRepository = notificationRepository;
+        this.sequenceService = sequenceService;
     }
 
     public Ticket createTicket(CreateTicketRequest request, Authentication auth) {
         Ticket ticket = new Ticket();
+        ticket.setId(sequenceService.next(SEQ_TICKETS));
         ticket.setTitle(request.title());
         ticket.setDescription(request.description());
         ticket.setCategory(request.category());
@@ -45,6 +50,9 @@ public class TicketService {
         ticket.setStatus(TicketStatus.OPEN);
         ticket.setLocation(request.location());
         ticket.setCreatedUser(auth.getName());
+        ticket.setComments(new ArrayList<>());
+        ticket.setAttachments(new ArrayList<>());
+        ticket.touchTimestampsForInsert();
         Ticket saved = ticketRepository.save(ticket);
         createActivity(saved, auth.getName(), "Ticket created");
         return saved;
@@ -55,14 +63,13 @@ public class TicketService {
         if (hasRole(auth, "ROLE_ADMIN")) {
             base = ticketRepository.findAll();
         } else if (hasRole(auth, "ROLE_TECHNICIAN")) {
-            base = ticketRepository.findAll().stream()
-                    .filter(t -> Objects.equals(t.getAssignedTechnician(), auth.getName()))
-                    .toList();
+            base = ticketRepository.findByAssignedTechnicianOrderByCreatedAtDesc(auth.getName());
         } else {
             base = ticketRepository.findByCreatedUserOrderByCreatedAtDesc(auth.getName());
         }
         String keyword = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
         return base.stream()
+                .map(this::normalizeLists)
                 .filter(t -> status == null || t.getStatus() == status)
                 .filter(t -> priority == null || t.getPriority() == priority)
                 .filter(t -> keyword.isBlank()
@@ -105,12 +112,13 @@ public class TicketService {
         Ticket ticket = findTicket(id);
         if (hasRole(auth, "ROLE_ADMIN") || ticket.getCreatedUser().equals(auth.getName())
                 || (ticket.getAssignedTechnician() != null && ticket.getAssignedTechnician().equals(auth.getName()))) {
+            List<TicketActivity> acts = activityRepository.findByTicketIdOrderByCreatedAtDesc(id);
+            ticket.setActivities(acts);
             return ticket;
         }
         throw new BadRequestException("You are not allowed to view this ticket.");
     }
 
-    @Transactional
     public Ticket updateStatus(Long id, TicketStatus nextStatus, String resolutionNotes, Authentication auth) {
         Ticket ticket = findTicket(id);
         if (hasRole(auth, "ROLE_TECHNICIAN")) {
@@ -133,7 +141,19 @@ public class TicketService {
         return saved;
     }
 
-    @Transactional
+    public Ticket updatePriority(Long id, TicketPriority priority, Authentication auth) {
+        if (!hasRole(auth, "ROLE_ADMIN")) {
+            throw new BadRequestException("Only admin can change ticket priority.");
+        }
+        Ticket ticket = findTicket(id);
+        ticket.setPriority(priority);
+        ticket.setUpdatedAt(LocalDateTime.now());
+        createNotification(ticket, auth.getName(), "Ticket priority changed to " + priority);
+        Ticket saved = ticketRepository.save(ticket);
+        createActivity(saved, auth.getName(), "Priority changed to " + priority);
+        return saved;
+    }
+
     public Ticket assignTechnician(Long id, String technicianUsername, Authentication auth) {
         if (!hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("Only admin can assign technicians.");
@@ -147,64 +167,72 @@ public class TicketService {
         return saved;
     }
 
-    @Transactional
     public TicketComment addComment(Long ticketId, CommentRequest request, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
+        LocalDateTime now = LocalDateTime.now();
         TicketComment comment = new TicketComment();
-        comment.setTicket(ticket);
+        comment.setId(sequenceService.next(SEQ_COMMENTS));
         comment.setAuthor(auth.getName());
         comment.setMessage(request.message());
-        TicketComment saved = commentRepository.save(comment);
+        comment.setCreatedAt(now);
+        comment.setUpdatedAt(now);
+        ticket.getComments().add(comment);
+        ticket.setUpdatedAt(now);
+        ticketRepository.save(ticket);
         createNotification(ticket, auth.getName(), "New comment added to ticket.");
         createActivity(ticket, auth.getName(), "Comment added");
-        return saved;
+        return comment;
     }
 
-    @Transactional
     public TicketComment editComment(Long ticketId, Long commentId, CommentRequest request, Authentication auth) {
-        findTicket(ticketId);
-        TicketComment comment = commentRepository.findById(commentId)
+        Ticket ticket = findTicket(ticketId);
+        TicketComment comment = ticket.getComments().stream()
+                .filter(c -> Objects.equals(c.getId(), commentId))
+                .findFirst()
                 .orElseThrow(() -> new NotFoundException("Comment not found."));
-        if (!comment.getTicket().getId().equals(ticketId)) {
-            throw new BadRequestException("Comment does not belong to this ticket.");
-        }
         if (!comment.getAuthor().equals(auth.getName())) {
             throw new BadRequestException("You can only edit your own comment.");
         }
         comment.setMessage(request.message());
         comment.setUpdatedAt(LocalDateTime.now());
-        return commentRepository.save(comment);
+        ticket.setUpdatedAt(LocalDateTime.now());
+        ticketRepository.save(ticket);
+        return comment;
     }
 
-    @Transactional
     public void deleteComment(Long ticketId, Long commentId, Authentication auth) {
-        findTicket(ticketId);
-        TicketComment comment = commentRepository.findById(commentId)
+        Ticket ticket = findTicket(ticketId);
+        TicketComment comment = ticket.getComments().stream()
+                .filter(c -> Objects.equals(c.getId(), commentId))
+                .findFirst()
                 .orElseThrow(() -> new NotFoundException("Comment not found."));
-        if (!comment.getTicket().getId().equals(ticketId)) {
-            throw new BadRequestException("Comment does not belong to this ticket.");
-        }
         if (!comment.getAuthor().equals(auth.getName()) && !hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("You can only delete your own comment.");
         }
-        commentRepository.delete(comment);
-        createActivity(comment.getTicket(), auth.getName(), "Comment deleted");
+        ticket.getComments().removeIf(c -> Objects.equals(c.getId(), commentId));
+        ticket.setUpdatedAt(LocalDateTime.now());
+        ticketRepository.save(ticket);
+        createActivity(ticket, auth.getName(), "Comment deleted");
     }
 
-    @Transactional
     public List<TicketAttachment> addAttachments(Long ticketId, AttachmentUploadRequest request) {
         Ticket ticket = findTicket(ticketId);
         int existing = ticket.getAttachments() == null ? 0 : ticket.getAttachments().size();
         if (existing + request.imageUrls().size() > 3) {
             throw new BadRequestException("A ticket can have a maximum of 3 images.");
         }
-        List<TicketAttachment> newAttachments = request.imageUrls().stream().map(url -> {
+        List<TicketAttachment> saved = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (String url : request.imageUrls()) {
             TicketAttachment attachment = new TicketAttachment();
-            attachment.setTicket(ticket);
+            attachment.setId(sequenceService.next(SEQ_ATTACHMENTS));
             attachment.setImageUrl(url);
-            return attachment;
-        }).toList();
-        List<TicketAttachment> saved = attachmentRepository.saveAll(newAttachments);
+            attachment.setCreatedAt(now);
+            ticket.getAttachments().add(attachment);
+            saved.add(attachment);
+        }
+        ticket.setUpdatedAt(now);
+        ticketRepository.save(ticket);
         createActivity(ticket, "system", "Added " + saved.size() + " attachment(s)");
         return saved;
     }
@@ -219,11 +247,22 @@ public class TicketService {
     }
 
     private Ticket findTicket(Long id) {
-        return ticketRepository.findById(id).orElseThrow(() -> new NotFoundException("Ticket not found."));
+        Ticket t = ticketRepository.findById(id).orElseThrow(() -> new NotFoundException("Ticket not found."));
+        return normalizeLists(t);
+    }
+
+    private Ticket normalizeLists(Ticket t) {
+        if (t.getComments() == null) {
+            t.setComments(new ArrayList<>());
+        }
+        if (t.getAttachments() == null) {
+            t.setAttachments(new ArrayList<>());
+        }
+        return t;
     }
 
     private void validateTransition(TicketStatus current, TicketStatus next) {
-        // Per current requirement, allow changing from any status to any status.
+        // Allow any status → any status (same as previous JPA build).
     }
 
     private boolean hasRole(Authentication auth, String role) {
@@ -231,29 +270,36 @@ public class TicketService {
     }
 
     private void createNotification(Ticket ticket, String actor, String message) {
+        LocalDateTime now = LocalDateTime.now();
         if (!ticket.getCreatedUser().equals(actor)) {
             TicketNotification owner = new TicketNotification();
+            owner.setId(sequenceService.next(SEQ_NOTIFICATIONS));
             owner.setRecipient(ticket.getCreatedUser());
             owner.setTicketId(ticket.getId());
             owner.setMessage(message);
             owner.setRead(false);
+            owner.setCreatedAt(now);
             notificationRepository.save(owner);
         }
         if (ticket.getAssignedTechnician() != null && !ticket.getAssignedTechnician().equals(actor)) {
             TicketNotification technician = new TicketNotification();
+            technician.setId(sequenceService.next(SEQ_NOTIFICATIONS));
             technician.setRecipient(ticket.getAssignedTechnician());
             technician.setTicketId(ticket.getId());
             technician.setMessage(message);
             technician.setRead(false);
+            technician.setCreatedAt(now);
             notificationRepository.save(technician);
         }
     }
 
     private void createActivity(Ticket ticket, String actor, String action) {
         TicketActivity activity = new TicketActivity();
-        activity.setTicket(ticket);
+        activity.setId(sequenceService.next(SEQ_ACTIVITIES));
+        activity.setTicketId(ticket.getId());
         activity.setActor(actor);
         activity.setAction(action);
+        activity.setCreatedAt(LocalDateTime.now());
         activityRepository.save(activity);
     }
 

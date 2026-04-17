@@ -3,6 +3,7 @@ package com.sliit.backend.ticket;
 import com.sliit.backend.ticket.dto.AttachmentUploadRequest;
 import com.sliit.backend.ticket.dto.CommentRequest;
 import com.sliit.backend.ticket.dto.CreateTicketRequest;
+import com.sliit.backend.ticket.dto.UpdatePriorityRequest;
 import com.sliit.backend.ticket.dto.UpdateStatusRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -62,6 +63,14 @@ public class TicketController {
                                @Valid @RequestBody UpdateStatusRequest request,
                                Authentication authentication) {
         return service.updateStatus(id, request.status(), request.resolutionNotes(), authentication);
+    }
+
+    @PutMapping("/{id}/priority")
+    @PreAuthorize("hasRole('ADMIN')")
+    public Ticket updatePriority(@PathVariable Long id,
+                                 @Valid @RequestBody UpdatePriorityRequest request,
+                                 Authentication authentication) {
+        return service.updatePriority(id, request.priority(), authentication);
     }
 
     @PutMapping("/{id}/assign/{technicianUsername}")

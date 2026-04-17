@@ -1,11 +1,27 @@
-import { useRef, useState } from "react";
+/**
+ * Student-only maintenance ticket submission.
+ * Creates a ticket via REST, optionally uploads image attachments and follow-up comments.
+ */
+import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteFooter from "./SiteFooter";
 import { ticketsApi } from "./api/ticketsApi";
+import {
+  validateImageFiles,
+  validateOptionalLongText,
+  validateOptionalPhone,
+  validateOptionalEmail,
+  validateTicketDescription,
+  validateTicketTitle,
+} from "./ticketFormValidation";
 
 const CATEGORIES = ["Electrical", "Network", "Hardware", "Plumbing", "Other"];
 const LOCATIONS = ["Lab A", "Lab B", "Room 101", "Room 202", "Library", "Main Building"];
+
+function previewKey(file) {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
 
 export default function StudentSubmitTicketPage() {
   const { user, logout } = useAuth();
@@ -22,10 +38,26 @@ export default function StudentSubmitTicketPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState(user?.email || "");
   const [isEmergency, setIsEmergency] = useState(false);
-  const [previews, setPreviews] = useState([]);
+  /** Each slot keeps a stable object URL so we do not leak blobs on every render. */
+  const [previewSlots, setPreviewSlots] = useState([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Keep contact email in sync if the logged-in user loads after first paint.
+  useEffect(() => {
+    if (user?.email && !email) setEmail(user.email);
+  }, [user?.email, email]);
+
+  const previewSlotsRef = useRef(previewSlots);
+  previewSlotsRef.current = previewSlots;
+  // Revoke blob URLs only on unmount (not on every preview change).
+  useEffect(
+    () => () => {
+      previewSlotsRef.current.forEach((s) => URL.revokeObjectURL(s.url));
+    },
+    []
+  );
 
   if (!user) {
     return <Navigate to="/login?redirect=/student/submit-ticket" replace />;
@@ -35,38 +67,74 @@ export default function StudentSubmitTicketPage() {
   }
 
   function addFiles(fileList) {
-    const files = Array.from(fileList ?? []).filter((f) => f.type.startsWith("image/"));
-    if (files.length === 0) return;
-    const next = [...previews, ...files].slice(0, 3);
-    setPreviews(next);
+    const files = Array.from(fileList ?? []);
+    const { error: vErr, accepted } = validateImageFiles(files, previewSlots.length);
+    if (vErr) setError(vErr);
+    else setError("");
+    if (accepted.length === 0) return;
+
+    setPreviewSlots((prev) => {
+      const next = [...prev];
+      for (const file of accepted) {
+        next.push({ key: previewKey(file), file, url: URL.createObjectURL(file) });
+      }
+      return next.slice(0, 3);
+    });
   }
 
   function removePreview(idx) {
-    setPreviews((prev) => prev.filter((_, i) => i !== idx));
+    setPreviewSlots((prev) => {
+      const slot = prev[idx];
+      if (slot) URL.revokeObjectURL(slot.url);
+      return prev.filter((_, i) => i !== idx);
+    });
+  }
+
+  function collectValidationErrors() {
+    return [
+      validateTicketTitle(title),
+      validateTicketDescription(description),
+      validateOptionalPhone(phone),
+      validateOptionalEmail(email),
+      validateOptionalLongText(additionalComment, "Additional comment"),
+    ].filter(Boolean);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    const msgs = collectValidationErrors();
+    if (msgs.length) {
+      setError(msgs[0]);
+      return;
+    }
+
     try {
       setSubmitting(true);
       setError("");
       const effectivePriority = isEmergency ? "HIGH" : priority;
       const created = await ticketsApi.createTicket(
         {
-          title,
+          title: title.trim(),
           category,
           priority: effectivePriority,
           location,
-          description,
+          description: description.trim(),
         },
         user
       );
 
-      // Frontend currently stores image URLs; for local files use temporary object URLs.
-      if (previews.length > 0) {
-        const imageUrls = previews.map((f) => URL.createObjectURL(f));
+      if (previewSlots.length > 0) {
+        const imageUrls = previewSlots.map((s) => s.url);
         await ticketsApi.addAttachments(created.id, imageUrls, user);
       }
+
+      const contactBits = [];
+      if (phone.trim()) contactBits.push(`Phone: ${phone.trim()}`);
+      if (email.trim()) contactBits.push(`Email: ${email.trim()}`);
+      if (contactBits.length) {
+        await ticketsApi.addComment(created.id, `Contact:\n${contactBits.join("\n")}`, user);
+      }
+
       if (additionalComment.trim()) {
         await ticketsApi.addComment(created.id, additionalComment.trim(), user);
       }
@@ -81,6 +149,7 @@ export default function StudentSubmitTicketPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
+      {/* App chrome: matches other student-facing pages */}
       <header className="border-b border-cyan-500/20 bg-slate-900/95">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <Link to="/" className="flex items-center gap-3">
@@ -99,10 +168,16 @@ export default function StudentSubmitTicketPage() {
           </div>
         </div>
         <nav className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-700/50 px-4 py-2.5 text-sm sm:px-6 lg:px-8">
-          <Link to="/" className="text-slate-400 hover:text-cyan-300">Home</Link>
-          <Link to="/student/maintenance" className="text-slate-400 hover:text-cyan-300">My Tickets</Link>
+          <Link to="/" className="text-slate-400 hover:text-cyan-300">
+            Home
+          </Link>
+          <Link to="/student/maintenance" className="text-slate-400 hover:text-cyan-300">
+            My Tickets
+          </Link>
           <span className="font-semibold text-cyan-400">Report Issue</span>
-          <Link to="/contact" className="text-slate-400 hover:text-cyan-300">Help</Link>
+          <Link to="/contact" className="text-slate-400 hover:text-cyan-300">
+            Help
+          </Link>
           <button
             type="button"
             onClick={() => {
@@ -128,12 +203,14 @@ export default function StudentSubmitTicketPage() {
             <div className="mt-4 space-y-3">
               <label className="grid items-center gap-2 sm:grid-cols-[170px_1fr]">
                 <span className="text-sm text-slate-300">Title:</span>
-                <input required value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" placeholder="_____________________________" />
+                <input value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" placeholder="_____________________________" />
               </label>
               <label className="grid items-center gap-2 sm:grid-cols-[170px_1fr]">
                 <span className="text-sm text-slate-300">Category:</span>
                 <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">
-                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                  {CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
                 </select>
               </label>
               <label className="grid items-center gap-2 sm:grid-cols-[170px_1fr]">
@@ -147,7 +224,9 @@ export default function StudentSubmitTicketPage() {
               <label className="grid items-center gap-2 sm:grid-cols-[170px_1fr]">
                 <span className="text-sm text-slate-300">Location:</span>
                 <select value={location} onChange={(e) => setLocation(e.target.value)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2">
-                  {LOCATIONS.map((l) => <option key={l}>{l}</option>)}
+                  {LOCATIONS.map((l) => (
+                    <option key={l}>{l}</option>
+                  ))}
                 </select>
               </label>
             </div>
@@ -155,7 +234,7 @@ export default function StudentSubmitTicketPage() {
 
           <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-5 sm:p-6">
             <h2 className="font-heading text-lg font-semibold text-cyan-300">📄 Description</h2>
-            <textarea required rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-4 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Type the issue details here..." />
+            <textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-4 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2" placeholder="Type the issue details here..." />
           </section>
 
           <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-5 sm:p-6">
@@ -170,16 +249,21 @@ export default function StudentSubmitTicketPage() {
               }}
               className="mt-4 w-full rounded-xl border-2 border-dashed border-cyan-500/40 bg-slate-950/70 px-4 py-8 text-sm text-slate-300"
             >
-              Drag & Drop files here<br />or<br />
+              Drag & Drop files here
+              <br />
+              or
+              <br />
               <span className="mt-2 inline-block rounded-md bg-cyan-500 px-3 py-1.5 font-semibold text-slate-950">Choose Files</span>
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => addFiles(e.target.files)} />
             <p className="mt-3 text-sm text-slate-400">Preview:</p>
             <div className="mt-4 flex flex-wrap gap-3">
-              {previews.map((file, idx) => (
-                <div key={`${file.name}-${idx}`} className="relative">
-                  <img src={URL.createObjectURL(file)} alt={file.name} className="h-20 w-20 rounded-lg border border-slate-700 object-cover" />
-                  <button type="button" onClick={() => removePreview(idx)} className="absolute -right-2 -top-2 rounded-full bg-red-500 px-1.5 text-xs text-white">x</button>
+              {previewSlots.map((slot, idx) => (
+                <div key={slot.key} className="relative">
+                  <img src={slot.url} alt={slot.file.name} className="h-20 w-20 rounded-lg border border-slate-700 object-cover" />
+                  <button type="button" onClick={() => removePreview(idx)} className="absolute -right-2 -top-2 rounded-full bg-red-500 px-1.5 text-xs text-white">
+                    x
+                  </button>
                 </div>
               ))}
             </div>

@@ -1,3 +1,6 @@
+/**
+ * Thin fetch wrapper for the Spring ticket module. Maps UI roles to demo Basic Auth users.
+ */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 
 function toBackendUser(role) {
@@ -7,6 +10,9 @@ function toBackendUser(role) {
   }
   if (normalized === "technician" || normalized === "tech") {
     return { username: "tech1", password: "1234" };
+  }
+  if (normalized === "lecturer") {
+    return { username: "lecturer1", password: "1234" };
   }
   return { username: "student1", password: "1234" };
 }
@@ -35,7 +41,12 @@ async function request(path, { method = "GET", body, user } = {}) {
     let message = `Request failed (${res.status})`;
     try {
       const data = await res.json();
-      if (data?.error) message = data.error;
+      if (data?.error) {
+        message = data.detail ? `${data.error} ${data.detail}` : data.error;
+      } else if (typeof data === "object" && data && !Array.isArray(data)) {
+        const first = Object.entries(data).find(([, v]) => typeof v === "string");
+        if (first) message = `${first[0]}: ${first[1]}`;
+      }
     } catch {
       // ignore parse failures
     }
@@ -72,6 +83,13 @@ export const ticketsApi = {
     return request(`/api/tickets/${id}/status`, {
       method: "PUT",
       body: { status, resolutionNotes },
+      user,
+    });
+  },
+  updatePriority(id, priority, user) {
+    return request(`/api/tickets/${id}/priority`, {
+      method: "PUT",
+      body: { priority },
       user,
     });
   },

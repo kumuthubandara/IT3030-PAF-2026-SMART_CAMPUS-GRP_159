@@ -1,3 +1,7 @@
+/**
+ * Role-aware entry for /tickets: sends each role to the correct first screen
+ * (student submit, lecturer submit, staff management).
+ */
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 
