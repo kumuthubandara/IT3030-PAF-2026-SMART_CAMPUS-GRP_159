@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { Link } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
@@ -93,7 +93,6 @@ const lectureHallBuildings = [
   },
 ];
 
-/** Same Main / New layout as lecture halls, with lab-focused copy (computer labs popup). */
 const computerLabBuildings = [
   {
     name: "Main building",
@@ -109,7 +108,15 @@ const computerLabBuildings = [
   },
 ];
 
-/** Floors shown as cards when Main building is selected in the lecture halls popup. */
+const equipmentItems = [
+  { code: "EQ001", name: "Projector", location: "Main Building Store", status: "Available" },
+  { code: "EQ002", name: "Laptop", location: "IT Support Room", status: "Available" },
+  { code: "EQ003", name: "Clicker Set", location: "Main Building Store", status: "Available" },
+  { code: "EQ004", name: "Microphone", location: "Auditorium Store", status: "In Use" },
+  { code: "EQ005", name: "Speaker", location: "Media Unit", status: "Available" },
+  { code: "EQ006", name: "HDMI Adapter", location: "IT Support Room", status: "Available" },
+];
+
 const mainBuildingFloors = [
   { label: "Floor 3", detail: "Lecture halls A–C" },
   { label: "Floor 4", detail: "Lecture halls D–F" },
@@ -117,7 +124,6 @@ const mainBuildingFloors = [
   { label: "Floor 6", detail: "Lecture halls J–L" },
 ];
 
-/** New building: floors 2–13 (inclusive). */
 const newBuildingFloors = Array.from({ length: 12 }, (_, i) => {
   const level = i + 2;
   return {
@@ -126,7 +132,6 @@ const newBuildingFloors = Array.from({ length: 12 }, (_, i) => {
   };
 });
 
-/** Main building floors for computer labs (same levels as lecture halls, lab wording). */
 const labMainBuildingFloors = [
   { label: "Floor 3", detail: "Teaching labs and shared practical clusters." },
   { label: "Floor 4", detail: "Imaged workstations and software lab suites." },
@@ -139,13 +144,11 @@ const labNewBuildingFloors = newBuildingFloors.map((f) => ({
   detail: "Lab bays, storage for kit, and quick-deploy benches on this level.",
 }));
 
-/** Block tabs inside the floor-level popup for Main building. */
 const mainBuildingBlockTabs = [
   { label: "A block", detail: "North wing lecture halls — tiered seating and corridor access." },
   { label: "B block", detail: "South wing parallel rooms — hybrid-ready spaces and breakout areas." },
 ];
 
-/** Block tabs inside the floor-level popup for New building. */
 const newBuildingBlockTabs = [
   { label: "F block", detail: "East stack — lecture theatres and collaboration bays." },
   { label: "G block", detail: "West stack — seminar suites and writable-wall classrooms." },
@@ -158,6 +161,7 @@ function floorBlockPanelCopy(floorLabel, blockLabel, buildingKey, spaceKind = "l
   const unit = isLab ? "labs" : "halls";
   const availability =
     buildingKey === "new" ? (isLab ? `4 ${unit}` : `5 ${unit}`) : `6 ${unit}`;
+
   return {
     title: tab.label,
     description: isLab
@@ -167,11 +171,25 @@ function floorBlockPanelCopy(floorLabel, blockLabel, buildingKey, spaceKind = "l
   };
 }
 
+function generateRoomNumbers(floorLabel, blockLabel, spaceKind = "lecture") {
+  const floorNumber = floorLabel.replace("Floor ", "");
+  const prefix = blockLabel.charAt(0).toUpperCase();
+
+  return Array.from({ length: 4 }, (_, i) => {
+    const roomCode = `${prefix}${floorNumber}${String(i + 1).padStart(2, "0")}`;
+    return {
+      code: roomCode,
+      label: spaceKind === "lab" ? "Computer Lab" : "Lecture Hall",
+    };
+  });
+}
+
 export default function FacilitiesPage() {
   const { user } = useAuth();
   const role = String(user?.role ?? "")
     .trim()
     .toLowerCase();
+
   const isLecturer = role === "lecturer";
   const isStudent = role === "student";
   const isAdmin = role === "administrator" || role === "admin";
@@ -184,23 +202,52 @@ export default function FacilitiesPage() {
       : isAdmin || isTechnician
         ? adminTechnicianFacilities
         : defaultFacilities;
+
   const canOpenDetailedFacilityCards = isLecturer || isAdmin || isTechnician;
   const isReadOnlyRole = isAdmin || isTechnician;
 
   const variant = isLecturer ? "lecturer" : isStudent ? "student" : isAdmin ? "admin" : "default";
-  /** `lecture-halls` and `computer-labs` share the same building → floor → block flow. */
+
   const [openFacilityModal, setOpenFacilityModal] = useState(null);
   const [activeFacilityBuilding, setActiveFacilityBuilding] = useState(lectureHallBuildings[0].name);
-  /** Which floor’s nested “blocks” popup is open; `buildingKey` is `main` or `new`. */
   const [floorBlocksModalFloor, setFloorBlocksModalFloor] = useState(null);
   const [floorBlocksModalBuilding, setFloorBlocksModalBuilding] = useState(null);
   const [activeFloorBlockTab, setActiveFloorBlockTab] = useState(mainBuildingBlockTabs[0].label);
 
+  const [apiResources, setApiResources] = useState([]);
+  const [loadingResources, setLoadingResources] = useState(true);
+  const [resourceError, setResourceError] = useState("");
+
+  const [typeFilter, setTypeFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [capacityFilter, setCapacityFilter] = useState("");
+
+  useEffect(() => {
+    fetch("http://localhost:8081/api/resources")
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch resources");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setApiResources(data);
+        setLoadingResources(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setResourceError("Could not load resources from backend");
+        setLoadingResources(false);
+      });
+  }, []);
+
   const facilityBuildings =
     openFacilityModal === "computer-labs" ? computerLabBuildings : lectureHallBuildings;
+
   const selectedFacilityBuilding =
     facilityBuildings.find((building) => building.name === activeFacilityBuilding) ??
     facilityBuildings[0];
+
   const facilitySpaceKind = openFacilityModal === "computer-labs" ? "lab" : "lecture";
   const mainFloorsForModal = facilitySpaceKind === "lab" ? labMainBuildingFloors : mainBuildingFloors;
   const newFloorsForModal = facilitySpaceKind === "lab" ? labNewBuildingFloors : newBuildingFloors;
@@ -217,6 +264,27 @@ export default function FacilitiesPage() {
 
   const floorModalBlockTabs =
     floorBlocksModalBuilding === "new" ? newBuildingBlockTabs : mainBuildingBlockTabs;
+
+  const roomNumbers =
+    floorBlocksModalFloor && floorBlocksModalBuilding
+      ? generateRoomNumbers(floorBlocksModalFloor, activeFloorBlockTab, facilitySpaceKind)
+      : [];
+
+  const filteredResources = apiResources.filter((resource) => {
+    const matchesType = typeFilter
+      ? resource.type?.toLowerCase().includes(typeFilter.toLowerCase())
+      : true;
+
+    const matchesLocation = locationFilter
+      ? resource.location?.toLowerCase().includes(locationFilter.toLowerCase())
+      : true;
+
+    const matchesCapacity = capacityFilter
+      ? Number(resource.capacity) >= Number(capacityFilter)
+      : true;
+
+    return matchesType && matchesLocation && matchesCapacity;
+  });
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
@@ -264,6 +332,7 @@ export default function FacilitiesPage() {
                 </>
               )}
             </p>
+
             {variant === "admin" ? (
               <div className="mx-auto mt-6 flex max-w-2xl flex-wrap justify-center gap-3">
                 <Link
@@ -285,9 +354,11 @@ export default function FacilitiesPage() {
 
         <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid gap-5 md:grid-cols-2">
-            {facilities.map((facility) => (
+            {facilities.map((facility) =>
               canOpenDetailedFacilityCards &&
-              (facility.name === "Lecture halls" || facility.name === "Computer labs") ? (
+              (facility.name === "Lecture halls" ||
+                facility.name === "Computer labs" ||
+                facility.name === "Equipment") ? (
                 <button
                   key={facility.name}
                   type="button"
@@ -300,7 +371,11 @@ export default function FacilitiesPage() {
                         : lectureHallBuildings[0].name,
                     );
                     setOpenFacilityModal(
-                      facility.name === "Computer labs" ? "computer-labs" : "lecture-halls",
+                      facility.name === "Computer labs"
+                        ? "computer-labs"
+                        : facility.name === "Equipment"
+                          ? "equipment"
+                          : "lecture-halls",
                     );
                   }}
                   className="rounded-2xl border border-violet-500/25 bg-slate-900/80 p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-violet-400/40 hover:shadow-lg hover:shadow-violet-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
@@ -310,9 +385,7 @@ export default function FacilitiesPage() {
                   <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-violet-300/90">
                     {isReadOnlyRole ? "Reference only · no booking" : facility.availability}
                   </p>
-                  <p className="mt-2 text-xs font-medium text-violet-300">
-                    Open popup →
-                  </p>
+                  <p className="mt-2 text-xs font-medium text-violet-300">Open popup →</p>
                 </button>
               ) : (
                 <article
@@ -356,15 +429,121 @@ export default function FacilitiesPage() {
                   </p>
                 </article>
               )
-            ))}
+            )}
           </div>
+
+          <div className="mt-12 rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-6 shadow-sm">
+            <h3 className="font-heading text-2xl font-semibold text-white">Search & Filter Resources</h3>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Type</label>
+                <input
+                  type="text"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  placeholder="e.g. LAB / ROOM / EQUIPMENT"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Location</label>
+                <input
+                  type="text"
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                  placeholder="e.g. Building A"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-300">Minimum Capacity</label>
+                <input
+                  type="number"
+                  value={capacityFilter}
+                  onChange={(e) => setCapacityFilter(e.target.value)}
+                  placeholder="e.g. 20"
+                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-2 text-sm text-white outline-none transition focus:border-cyan-400"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setTypeFilter("");
+                  setLocationFilter("");
+                  setCapacityFilter("");
+                }}
+                className="rounded-full border border-cyan-500/40 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-500/10"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-12">
+            <h3 className="font-heading text-2xl font-semibold text-white">
+              Available Resources from Database
+            </h3>
+
+            {loadingResources && (
+              <p className="mt-4 text-sm text-slate-400">Loading resources...</p>
+            )}
+
+            {resourceError && (
+              <p className="mt-4 text-sm text-red-400">{resourceError}</p>
+            )}
+
+            {!loadingResources && !resourceError && (
+              <div className="mt-6 grid gap-5 md:grid-cols-2">
+                {filteredResources.length > 0 ? (
+                  filteredResources.map((resource) => (
+                    <article
+                      key={resource.id}
+                      className="rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-6 shadow-sm transition hover:-translate-y-1 hover:border-cyan-400/40 hover:shadow-cyan-500/10"
+                    >
+                      <h4 className="font-heading text-xl font-semibold text-cyan-200">
+                        {resource.name}
+                      </h4>
+                      <p className="mt-3 text-sm leading-relaxed text-slate-400">
+                        Type: {resource.type}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Capacity: {resource.capacity ?? "N/A"}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Location: {resource.location}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-400">
+                        Available: {resource.availableFrom ?? "N/A"} - {resource.availableTo ?? "N/A"}
+                      </p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-cyan-400">
+                        {resource.status}
+                      </p>
+                    </article>
+                  ))
+                ) : (
+                  <p className="text-sm text-slate-400">No matching resources found.</p>
+                )}
+              </div>
+            )}
+          </div>
+
           {openFacilityModal ? (
             <>
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
                 <div className="w-full max-w-4xl rounded-2xl border border-violet-500/25 bg-slate-900 shadow-2xl shadow-violet-900/40">
                   <div className="flex items-center justify-between border-b border-violet-500/20 px-5 py-4 sm:px-7">
                     <h3 className="font-heading text-2xl font-semibold text-white">
-                      {openFacilityModal === "computer-labs" ? "Computer labs" : "Lecture halls"}
+                      {openFacilityModal === "computer-labs"
+                        ? "Computer labs"
+                        : openFacilityModal === "equipment"
+                          ? "Equipment Catalogue"
+                          : "Lecture halls"}
                     </h3>
                     <button
                       type="button"
@@ -380,108 +559,136 @@ export default function FacilitiesPage() {
                   </div>
 
                   <div className="px-5 py-5 sm:px-7 sm:py-6">
-                    <p className="text-sm text-slate-400">
-                      {isReadOnlyRole
-                        ? openFacilityModal === "computer-labs"
-                          ? "Read-only view for admins and technicians. Computer labs cannot be booked from this page."
-                          : "Read-only view for admins and technicians. Lecture halls cannot be booked from this page."
-                        : openFacilityModal === "computer-labs"
-                          ? "Select a building to view computer lab availability for booking."
-                          : "Select a building to view lecture hall availability for booking."}
-                    </p>
+                    {openFacilityModal === "equipment" ? (
+                      <>
+                        <p className="text-sm text-slate-400">
+                          Browse available equipment for teaching and classroom support.
+                        </p>
 
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      {facilityBuildings.map((building) => {
-                        const isActive = building.name === activeFacilityBuilding;
-                        return (
-                          <button
-                            key={building.name}
-                            type="button"
-                            onClick={() => {
-                              setActiveFacilityBuilding(building.name);
-                              setFloorBlocksModalFloor(null);
-                              setFloorBlocksModalBuilding(null);
-                            }}
-                            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                              isActive
-                                ? "border-violet-300/70 bg-violet-500/20 text-violet-100"
-                                : "border-violet-500/30 text-violet-300 hover:border-violet-400/50 hover:text-violet-200"
-                            }`}
-                          >
-                            {building.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          {equipmentItems.map((item) => (
+                            <article
+                              key={item.code}
+                              className="rounded-xl border border-violet-500/25 bg-slate-950/70 p-5 shadow-sm"
+                            >
+                              <h4 className="font-heading text-lg font-semibold text-violet-200">
+                                {item.code}
+                              </h4>
+                              <p className="mt-2 text-sm text-slate-300">{item.name}</p>
+                              <p className="mt-2 text-xs text-slate-400">Location: {item.location}</p>
+                              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-violet-300">
+                                {item.status}
+                              </p>
+                            </article>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm text-slate-400">
+                          {isReadOnlyRole
+                            ? openFacilityModal === "computer-labs"
+                              ? "Read-only view for admins and technicians. Computer labs cannot be booked from this page."
+                              : "Read-only view for admins and technicians. Lecture halls cannot be booked from this page."
+                            : openFacilityModal === "computer-labs"
+                              ? "Select a building to view computer lab availability for booking."
+                              : "Select a building to view lecture hall availability for booking."}
+                        </p>
 
-                    <article className="mt-5 rounded-xl border border-violet-500/20 bg-slate-950/70 p-6 shadow-sm">
-                      <h4 className="font-heading text-lg font-semibold text-violet-200">
-                        {selectedFacilityBuilding.name}
-                      </h4>
-                      <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                        {selectedFacilityBuilding.description}
-                      </p>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-violet-300/90">
-                        {selectedFacilityBuilding.availability}
-                      </p>
-
-                      {activeFacilityBuilding === "Main building" ? (
-                        <div className="mt-6">
-                          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Floors
-                          </p>
-                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            {mainFloorsForModal.map((floor) => (
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          {facilityBuildings.map((building) => {
+                            const isActive = building.name === activeFacilityBuilding;
+                            return (
                               <button
-                                key={floor.label}
+                                key={building.name}
                                 type="button"
                                 onClick={() => {
-                                  setFloorBlocksModalBuilding("main");
-                                  setActiveFloorBlockTab(mainBuildingBlockTabs[0].label);
-                                  setFloorBlocksModalFloor(floor.label);
+                                  setActiveFacilityBuilding(building.name);
+                                  setFloorBlocksModalFloor(null);
+                                  setFloorBlocksModalBuilding(null);
                                 }}
-                                className="rounded-xl border border-violet-500/25 bg-slate-900/90 px-4 py-4 text-left shadow-sm transition hover:border-violet-400/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                                className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                                  isActive
+                                    ? "border-violet-300/70 bg-violet-500/20 text-violet-100"
+                                    : "border-violet-500/30 text-violet-300 hover:border-violet-400/50 hover:text-violet-200"
+                                }`}
                               >
-                                <p className="font-heading text-base font-semibold text-white">
-                                  {floor.label}
-                                </p>
-                                <p className="mt-1 text-xs leading-relaxed text-slate-400">{floor.detail}</p>
+                                {building.name}
                               </button>
-                            ))}
-                          </div>
+                            );
+                          })}
                         </div>
-                      ) : activeFacilityBuilding === "New building" ? (
-                        <div className="mt-6">
-                          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Floors (2–13)
+
+                        <article className="mt-5 rounded-xl border border-violet-500/20 bg-slate-950/70 p-6 shadow-sm">
+                          <h4 className="font-heading text-lg font-semibold text-violet-200">
+                            {selectedFacilityBuilding.name}
+                          </h4>
+                          <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                            {selectedFacilityBuilding.description}
                           </p>
-                          <div className="grid max-h-80 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                            {newFloorsForModal.map((floor) => (
-                              <button
-                                key={floor.label}
-                                type="button"
-                                onClick={() => {
-                                  setFloorBlocksModalBuilding("new");
-                                  setActiveFloorBlockTab(newBuildingBlockTabs[0].label);
-                                  setFloorBlocksModalFloor(floor.label);
-                                }}
-                                className="rounded-xl border border-violet-500/25 bg-slate-900/90 px-4 py-4 text-left shadow-sm transition hover:border-violet-400/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
-                              >
-                                <p className="font-heading text-base font-semibold text-white">
-                                  {floor.label}
-                                </p>
-                                <p className="mt-1 text-xs leading-relaxed text-slate-400">{floor.detail}</p>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-                    </article>
+                          <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-violet-300/90">
+                            {selectedFacilityBuilding.availability}
+                          </p>
+
+                          {activeFacilityBuilding === "Main building" ? (
+                            <div className="mt-6">
+                              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Floors
+                              </p>
+                              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                {mainFloorsForModal.map((floor) => (
+                                  <button
+                                    key={floor.label}
+                                    type="button"
+                                    onClick={() => {
+                                      setFloorBlocksModalBuilding("main");
+                                      setActiveFloorBlockTab(mainBuildingBlockTabs[0].label);
+                                      setFloorBlocksModalFloor(floor.label);
+                                    }}
+                                    className="rounded-xl border border-violet-500/25 bg-slate-900/90 px-4 py-4 text-left shadow-sm transition hover:border-violet-400/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                                  >
+                                    <p className="font-heading text-base font-semibold text-white">
+                                      {floor.label}
+                                    </p>
+                                    <p className="mt-1 text-xs leading-relaxed text-slate-400">{floor.detail}</p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : activeFacilityBuilding === "New building" ? (
+                            <div className="mt-6">
+                              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                Floors (2–13)
+                              </p>
+                              <div className="grid max-h-80 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                {newFloorsForModal.map((floor) => (
+                                  <button
+                                    key={floor.label}
+                                    type="button"
+                                    onClick={() => {
+                                      setFloorBlocksModalBuilding("new");
+                                      setActiveFloorBlockTab(newBuildingBlockTabs[0].label);
+                                      setFloorBlocksModalFloor(floor.label);
+                                    }}
+                                    className="rounded-xl border border-violet-500/25 bg-slate-900/90 px-4 py-4 text-left shadow-sm transition hover:border-violet-400/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                                  >
+                                    <p className="font-heading text-base font-semibold text-white">
+                                      {floor.label}
+                                    </p>
+                                    <p className="mt-1 text-xs leading-relaxed text-slate-400">{floor.detail}</p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </article>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {floorBlocksModalFloor && floorBlocksModalBuilding ? (
+              {openFacilityModal !== "equipment" && floorBlocksModalFloor && floorBlocksModalBuilding ? (
                 <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
                   <div className="w-full max-w-4xl rounded-2xl border border-violet-500/25 bg-slate-900 shadow-2xl shadow-violet-900/40">
                     <div className="flex items-center justify-between border-b border-violet-500/20 px-5 py-4 sm:px-7">
@@ -540,6 +747,28 @@ export default function FacilitiesPage() {
                           </p>
                         </article>
                       ) : null}
+
+                      {roomNumbers.length > 0 ? (
+                        <div className="mt-5">
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {facilitySpaceKind === "lab" ? "Lab Numbers" : "Lecture Hall Numbers"}
+                          </p>
+
+                          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                            {roomNumbers.map((room) => (
+                              <div
+                                key={room.code}
+                                className="rounded-xl border border-violet-500/25 bg-slate-950/70 px-4 py-4 shadow-sm"
+                              >
+                                <p className="font-heading text-lg font-semibold text-violet-200">
+                                  {room.code}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-400">{room.label}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -548,6 +777,7 @@ export default function FacilitiesPage() {
           ) : null}
         </section>
       </main>
+
       <SiteFooter />
     </div>
   );
