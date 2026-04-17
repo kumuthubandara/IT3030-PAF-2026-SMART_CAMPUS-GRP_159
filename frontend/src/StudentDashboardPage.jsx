@@ -4,7 +4,9 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+import ManagedBookingsListSection from "./features/bookings/components/ManagedBookingsListSection.jsx";
+import * as studentBookingsApi from "./services/bookingsApi.js";
+import { recentActivitiesListUrl } from "./services/recentActivitiesApi.js";
 
 const tiles = [
   {
@@ -41,8 +43,9 @@ const tiles = [
   },
   {
     id: "bookings",
-    title: "My bookings",
-    description: "View and manage your space and resource reservations.",
+    title: "My Booking",
+    description:
+      "Your meeting room and library workspace reservations (same spaces as on the full bookings page).",
     iconBg: "bg-cyan-500/20 text-cyan-400",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -95,7 +98,7 @@ export default function StudentDashboardPage() {
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`);
+      const res = await fetch(recentActivitiesListUrl(10, user));
       if (!res.ok) {
         throw new Error("Failed to load recent activity");
       }
@@ -127,7 +130,7 @@ export default function StudentDashboardPage() {
       void loadRecentActivities();
     }, 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [user]);
 
   const activeTile = tiles.find((t) => t.id === modal);
 
@@ -166,6 +169,12 @@ export default function StudentDashboardPage() {
               className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
             >
               Contact
+            </Link>
+            <Link
+              to="/student/meeting-rooms"
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400/60 hover:text-white"
+            >
+              Book resources
             </Link>
           </div>
         </div>
@@ -266,7 +275,7 @@ export default function StudentDashboardPage() {
             aria-modal="true"
             aria-labelledby="dashboard-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-cyan-500/20 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" ? "max-w-2xl" : "max-w-lg"
+              modal === "bookings" || modal === "settings" ? "max-w-2xl" : "max-w-lg"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-cyan-500/15 pb-4">
@@ -333,12 +342,26 @@ export default function StudentDashboardPage() {
               {modal === "bookings" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Your upcoming reservations will appear here when connected to the
-                    backend.
+                    This panel lists <strong className="text-cyan-200">only your bookings</strong> for meeting rooms
+                    and library workspaces (no lecture halls, labs, or equipment here). To browse bookable resources and
+                    submit new requests, open the{" "}
+                    <Link to="/student/meeting-rooms" className="font-medium text-cyan-400 hover:text-cyan-300">
+                      full bookings page
+                    </Link>
+                    .
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No bookings to show yet.
-                  </div>
+                  <ManagedBookingsListSection
+                    embedded
+                    bookingScope="studentSpaces"
+                    embeddedEmptyHint="No meeting or library workspace bookings yet. Use the full bookings page to browse and book."
+                    audience="student"
+                    user={user}
+                    fetchMyBookings={studentBookingsApi.fetchMyBookings}
+                    deleteBooking={studentBookingsApi.deleteMyBooking}
+                    cancelBooking={(id, u) => studentBookingsApi.cancelBooking(id, u, {})}
+                    updateBooking={studentBookingsApi.updateBooking}
+                    fetchResourceById={studentBookingsApi.fetchResourceById}
+                  />
                 </div>
               )}
 

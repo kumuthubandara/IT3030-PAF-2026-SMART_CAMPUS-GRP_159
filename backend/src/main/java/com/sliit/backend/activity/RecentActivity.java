@@ -24,6 +24,14 @@ public class RecentActivity {
     @Column(nullable = false, length = 500)
     private String message;
 
+    /** Requester / actor email for booking & contact events — used to scope student & lecturer feeds. */
+    @Column(name = "related_user_email", length = 255)
+    private String relatedUserEmail;
+
+    /** True for equipment bookings and contact messages — shown on technician dashboards. */
+    @Column(name = "technician_relevant", nullable = false)
+    private boolean technicianRelevant;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -64,5 +72,21 @@ public class RecentActivity {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getRelatedUserEmail() {
+        return relatedUserEmail;
+    }
+
+    public void setRelatedUserEmail(String relatedUserEmail) {
+        this.relatedUserEmail = relatedUserEmail;
+    }
+
+    public boolean isTechnicianRelevant() {
+        return technicianRelevant;
+    }
+
+    public void setTechnicianRelevant(boolean technicianRelevant) {
+        this.technicianRelevant = technicianRelevant;
     }
 }

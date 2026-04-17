@@ -47,6 +47,7 @@ public class ResourceService {
         existingResource.setStatus(updatedResource.getStatus());
         existingResource.setAvailableFrom(updatedResource.getAvailableFrom());
         existingResource.setAvailableTo(updatedResource.getAvailableTo());
+        existingResource.setImageUrl(updatedResource.getImageUrl());
 
         validateUniqueResource(existingResource, id);
         return resourceRepository.save(existingResource);
@@ -79,48 +80,72 @@ public class ResourceService {
 
         if ("lecture hall".equals(type)) {
             String hallNumber = requirePositiveNumber(resource.getHallNumber(), "Hall number is required.");
+            String building = locationKey(resource.getBuilding());
+            String floor = locationKey(resource.getFloor());
+            String block = locationKey(resource.getBlock());
             boolean exists = currentId == null
-                    ? resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCase("Lecture Hall", hallNumber)
-                    : resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndIdNot("Lecture Hall", hallNumber, currentId);
+                    ? resourceRepository
+                            .existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCase(
+                                    "Lecture Hall", hallNumber, building, floor, block)
+                    : resourceRepository
+                            .existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCaseAndIdNot(
+                                    "Lecture Hall", hallNumber, building, floor, block, currentId);
             if (exists) {
-                throw new IllegalArgumentException("This lecture hall already exists");
+                throw new IllegalArgumentException("This lecture hall already exists at this building, floor, and block");
             }
             return;
         }
 
         if ("computer lab".equals(type)) {
             String hallNumber = requirePositiveNumber(resource.getHallNumber(), "Lab number is required.");
+            String building = locationKey(resource.getBuilding());
+            String floor = locationKey(resource.getFloor());
+            String block = locationKey(resource.getBlock());
             boolean exists = currentId == null
-                    ? resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCase("Computer Lab", hallNumber)
-                    : resourceRepository.existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndIdNot("Computer Lab", hallNumber, currentId);
+                    ? resourceRepository
+                            .existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCase(
+                                    "Computer Lab", hallNumber, building, floor, block)
+                    : resourceRepository
+                            .existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCaseAndIdNot(
+                                    "Computer Lab", hallNumber, building, floor, block, currentId);
             if (exists) {
-                throw new IllegalArgumentException("This computer lab already exists");
+                throw new IllegalArgumentException("This computer lab already exists at this building, floor, and block");
             }
             return;
         }
 
         if ("meeting room".equals(type)) {
             String roomNumber = requirePositiveNumber(resource.getMeetingRoomNumber(), "Meeting Room Number is required.");
+            String building = locationKey(resource.getBuilding());
+            String floor = locationKey(resource.getFloor());
+            String block = locationKey(resource.getBlock());
             boolean exists = currentId == null
-                    ? resourceRepository.existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCase("Meeting Room", roomNumber)
-                    : resourceRepository.existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCaseAndIdNot("Meeting Room", roomNumber, currentId);
+                    ? resourceRepository
+                            .existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCase(
+                                    "Meeting Room", roomNumber, building, floor, block)
+                    : resourceRepository
+                            .existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCaseAndIdNot(
+                                    "Meeting Room", roomNumber, building, floor, block, currentId);
             if (exists) {
-                throw new IllegalArgumentException("This meeting room already exists");
+                throw new IllegalArgumentException("This meeting room already exists at this building, floor, and block");
             }
             return;
         }
 
         if ("library workspace".equals(type)) {
             String workspaceNumber = requirePositiveNumber(resource.getWorkspaceNumber(), "Workspace Number is required.");
+            String building = locationKey(resource.getBuilding());
+            String floor = locationKey(resource.getFloor());
+            String block = locationKey(resource.getBlock());
             boolean exists = currentId == null
-                    ? resourceRepository.existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCase("Library Workspace", workspaceNumber)
-                    : resourceRepository.existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCaseAndIdNot(
-                            "Library Workspace",
-                            workspaceNumber,
-                            currentId
-                    );
+                    ? resourceRepository
+                            .existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCase(
+                                    "Library Workspace", workspaceNumber, building, floor, block)
+                    : resourceRepository
+                            .existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCaseAndIdNot(
+                                    "Library Workspace", workspaceNumber, building, floor, block, currentId);
             if (exists) {
-                throw new IllegalArgumentException("This workspace already exists");
+                throw new IllegalArgumentException("This workspace already exists at this building, floor, and block");
             }
             return;
         }
@@ -140,6 +165,11 @@ public class ResourceService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** Trimmed location part for composite uniqueness (null → empty string). */
+    private static String locationKey(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String requireNonBlank(String value, String message) {

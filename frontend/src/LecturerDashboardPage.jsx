@@ -4,7 +4,9 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+import ManagedBookingsListSection from "./features/bookings/components/ManagedBookingsListSection.jsx";
+import * as lecturerBookingsApi from "./features/bookings/api/lecturerBookingsApi.js";
+import { recentActivitiesListUrl } from "./services/recentActivitiesApi.js";
 
 const tiles = [
   {
@@ -59,7 +61,7 @@ const tiles = [
     id: "equipment",
     title: "Equipment booking",
     description:
-      "Reserve laptops, projectors, portable lab kits, and other teaching kit for sessions.",
+      "View kit bookings here; the bookings page lists halls, labs, rooms, and workspaces only.",
     iconBg: "bg-sky-500/20 text-sky-300",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -147,7 +149,7 @@ export default function LecturerDashboardPage() {
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`);
+      const res = await fetch(recentActivitiesListUrl(10, user));
       if (!res.ok) {
         throw new Error("Failed to load recent activity");
       }
@@ -179,7 +181,7 @@ export default function LecturerDashboardPage() {
       void loadRecentActivities();
     }, 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [user]);
 
   const activeTile = tiles.find((t) => t.id === modal);
 
@@ -328,7 +330,7 @@ export default function LecturerDashboardPage() {
             aria-modal="true"
             aria-labelledby="lecturer-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-violet-500/25 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" ? "max-w-2xl" : "max-w-lg"
+              modal === "settings" || modal === "rooms" || modal === "equipment" ? "max-w-2xl" : "max-w-lg"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-violet-500/15 pb-4">
@@ -419,36 +421,54 @@ export default function LecturerDashboardPage() {
               {modal === "rooms" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Book or adjust teaching spaces on the{" "}
-                    <Link to="/facilities" className="font-medium text-cyan-400 hover:text-cyan-300">
-                      Facilities
-                    </Link>{" "}
-                    page. Pending approvals will appear here when APIs are connected.
+                    This panel lists <strong className="text-violet-200">only your bookings</strong> for lecture
+                    halls, computer labs, meeting rooms, and library workspaces. To browse resources and submit a new
+                    request, open the{" "}
+                    <Link to="/lecturer/bookings" className="font-medium text-cyan-400 hover:text-cyan-300">
+                      full bookings page
+                    </Link>
+                    .
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No pending room requests (demo).
-                  </div>
+                  <ManagedBookingsListSection
+                    embedded
+                    bookingScope="lecturerSpaces"
+                    audience="lecturer"
+                    user={user}
+                    fetchMyBookings={lecturerBookingsApi.fetchMyBookings}
+                    deleteBooking={lecturerBookingsApi.deleteBooking}
+                    cancelBooking={lecturerBookingsApi.cancelApprovedBooking}
+                    updateBooking={lecturerBookingsApi.updateBooking}
+                    fetchResourceById={lecturerBookingsApi.fetchResourceById}
+                  />
                 </div>
               )}
 
               {modal === "equipment" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Request portable equipment for labs and lectures—pickup windows, quantities,
-                    and returns will show here once your asset catalogue API is connected. For
-                    shared campus spaces, use{" "}
+                    This panel lists <strong className="text-violet-200">only your equipment bookings</strong>. The{" "}
+                    <Link to="/lecturer/bookings" className="font-medium text-cyan-400 hover:text-cyan-300">
+                      bookings page
+                    </Link>{" "}
+                    covers halls, labs, meeting rooms, and library workspaces only — use the{" "}
                     <Link to="/facilities" className="font-medium text-cyan-400 hover:text-cyan-300">
                       Facilities
                     </Link>{" "}
-                    alongside this view.
+                    catalogue (read-only) as a reference for campus kit, then follow your local process to reserve
+                    equipment (demo).
                   </p>
-                  <ul className="rounded-xl border border-slate-600/50 bg-slate-950/40 px-4 py-3 text-xs text-slate-500">
-                    <li className="py-1">Typical items: laptops, projectors, clickers, lab sensor kits</li>
-                    <li className="py-1">Link bookings to your teaching schedule when integrated</li>
-                  </ul>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No active equipment reservations (demo).
-                  </div>
+                  <ManagedBookingsListSection
+                    embedded
+                    bookingScope="equipment"
+                    embeddedEmptyHint="No equipment bookings yet. When your campus connects equipment booking here, new requests will appear in this list."
+                    audience="lecturer"
+                    user={user}
+                    fetchMyBookings={lecturerBookingsApi.fetchMyBookings}
+                    deleteBooking={lecturerBookingsApi.deleteBooking}
+                    cancelBooking={lecturerBookingsApi.cancelApprovedBooking}
+                    updateBooking={lecturerBookingsApi.updateBooking}
+                    fetchResourceById={lecturerBookingsApi.fetchResourceById}
+                  />
                 </div>
               )}
 

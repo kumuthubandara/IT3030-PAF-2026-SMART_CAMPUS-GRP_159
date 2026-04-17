@@ -9,6 +9,9 @@ import NotificationsPage from "./NotificationsPage";
 import LoginPage from "./LoginPage";
 import SignUpPage from "./SignUpPage";
 import StudentSettingsRoute from "./StudentSettingsRoute";
+import StudentMeetingRoomsPage from "./StudentMeetingRoomsPage";
+import LecturerBookingsPage from "./LecturerBookingsPage";
+import CheckInPage from "./CheckInPage";
 
 export default function App() {
   return (
@@ -24,6 +27,9 @@ export default function App() {
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/dashboard" element={<DashboardRoute />} />
         <Route path="/settings" element={<StudentSettingsRoute />} />
+        <Route path="/student/meeting-rooms" element={<StudentMeetingRoomsPage />} />
+        <Route path="/lecturer/bookings" element={<LecturerBookingsPage />} />
+        <Route path="/check-in/:bookingId" element={<CheckInPage />} />
       </Routes>
     </BrowserRouter>
   );
