@@ -1,9 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
-import { useAuth } from "./AuthContext";
-import { apiGet, apiPatch } from "./api";
+
+const sampleItems = [
+  {
+    id: "1",
+    title: "Booking approved",
+    detail: "Engineering Lab A · Tomorrow 10:00 AM – 12:00 PM",
+    time: "2 hours ago",
+    tone: "emerald",
+  },
+  {
+    id: "2",
+    title: "Maintenance update",
+    detail: "Ticket #TK-4821 — Technician assigned to Block C AC issue",
+    time: "Yesterday",
+    tone: "cyan",
+  },
+  {
+    id: "3",
+    title: "Approval needed",
+    detail: "Seminar Hall B request is waiting for facilities sign-off",
+    time: "2 days ago",
+    tone: "amber",
+  },
+];
 
 const toneRing = {
   emerald: "border-emerald-500/30 bg-emerald-500/10",
@@ -13,18 +35,6 @@ const toneRing = {
 
 export default function NotificationsPage() {
   const { hash } = useLocation();
-  const { user } = useAuth();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const authHeaders = useMemo(() => {
-    if (!user?.email) return {};
-    return {
-      "X-User-Email": user.email,
-      "X-User-Role": String(user.role || "USER").toUpperCase(),
-    };
-  }, [user]);
 
   useEffect(() => {
     if (hash !== "#notifications") return;
@@ -35,49 +45,6 @@ export default function NotificationsPage() {
     });
     return () => cancelAnimationFrame(t);
   }, [hash]);
-
-  useEffect(() => {
-    let ignore = false;
-    async function loadNotifications() {
-      if (!user?.email) {
-        setLoading(false);
-        setItems([]);
-        return;
-      }
-      setLoading(true);
-      setError("");
-      try {
-        const data = await apiGet(
-          `/api/notifications?userEmail=${encodeURIComponent(user.email)}`,
-          authHeaders
-        );
-        if (!ignore) {
-          setItems(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        if (!ignore) {
-          setError(err.message || "Failed to load notifications");
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    }
-    loadNotifications();
-    return () => {
-      ignore = true;
-    };
-  }, [user, authHeaders]);
-
-  async function markAsRead(id, read) {
-    try {
-      const updated = await apiPatch(`/api/notifications/${id}/read?read=${read}`, authHeaders);
-      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
-    } catch (err) {
-      setError(err.message || "Failed to update notification");
-    }
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">
@@ -114,37 +81,18 @@ export default function NotificationsPage() {
           className="mx-auto w-full max-w-2xl scroll-mt-28 px-4 py-10 sm:px-6 lg:px-8 lg:py-12"
         >
           <h2 className="sr-only">Recent notifications</h2>
-          {loading ? (
-            <p className="text-sm text-slate-400">Loading notifications...</p>
-          ) : error ? (
-            <p className="text-sm text-rose-300">{error}</p>
-          ) : items.length === 0 ? (
-            <p className="text-sm text-slate-400">
-              No notifications yet. Booking and ticket updates will appear here.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {items.map((item) => (
+          <ul className="space-y-3">
+            {sampleItems.map((item) => (
               <li
                 key={item.id}
-                className={`rounded-2xl border p-4 sm:p-5 ${item.read ? toneRing.cyan : toneRing.emerald}`}
+                className={`rounded-2xl border p-4 sm:p-5 ${toneRing[item.tone]}`}
               >
                 <p className="font-medium text-slate-100">{item.title}</p>
-                <p className="mt-1 text-sm text-slate-400">{item.message}</p>
-                <p className="mt-2 text-xs text-slate-500">
-                  {item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => markAsRead(item.id, !item.read)}
-                  className="mt-3 rounded-lg border border-cyan-400/40 px-3 py-1 text-xs text-cyan-300 transition hover:bg-cyan-500/10"
-                >
-                  {item.read ? "Mark as unread" : "Mark as read"}
-                </button>
+                <p className="mt-1 text-sm text-slate-400">{item.detail}</p>
+                <p className="mt-2 text-xs text-slate-500">{item.time}</p>
               </li>
-              ))}
-            </ul>
-          )}
+            ))}
+          </ul>
 
           <p className="mt-8 text-center text-sm text-slate-500">
             Prefer email? Adjust preferences on the{" "}

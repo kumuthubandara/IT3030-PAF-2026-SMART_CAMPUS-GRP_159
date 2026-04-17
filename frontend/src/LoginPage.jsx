@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteFooter from "./SiteFooter";
-import { getApiBaseUrl } from "./api";
 
 export default function LoginPage() {
   const { user, login } = useAuth();
@@ -18,19 +17,6 @@ export default function LoginPage() {
       navigate(searchParams.get("redirect") || "/dashboard", { replace: true });
     }
   }, [user, navigate, searchParams]);
-
-  useEffect(() => {
-    const oauth = searchParams.get("oauth");
-    const emailFromOAuth = searchParams.get("email");
-    if (oauth !== "success" || !emailFromOAuth) return;
-    login({
-      name: searchParams.get("name") || emailFromOAuth.split("@")[0],
-      email: emailFromOAuth,
-      role: searchParams.get("role") || "user",
-      authProvider: "google",
-    });
-    navigate("/dashboard", { replace: true });
-  }, [login, navigate, searchParams]);
 
   function handleSubmit(e) {
     e.preventDefault();
@@ -126,12 +112,6 @@ export default function LoginPage() {
             >
               Sign in
             </button>
-            <a
-              href={`${getApiBaseUrl()}/oauth2/authorization/google`}
-              className="block w-full rounded-xl border border-slate-600/80 bg-slate-950/80 py-3 text-center text-sm font-semibold text-slate-100 transition hover:border-cyan-400/50 hover:text-cyan-300"
-            >
-              Continue with Google
-            </a>
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-400">
