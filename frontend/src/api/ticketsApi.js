@@ -21,7 +21,8 @@ export function backendUsernameForUser(user) {
   return toBackendUser(user?.role).username;
 }
 
-function authHeader(user) {
+/** Used by admin dashboard and other screens that call Spring Security–protected APIs. */
+export function authHeader(user) {
   const creds = toBackendUser(user?.role);
   const token = btoa(`${creds.username}:${creds.password}`);
   return `Basic ${token}`;

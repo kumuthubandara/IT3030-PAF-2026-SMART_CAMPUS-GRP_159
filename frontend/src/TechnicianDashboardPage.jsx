@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
@@ -40,9 +40,9 @@ const tiles = [
     ),
   },
   {
-    id: "assigned-tickets",
-    title: "Assigned Tickets",
-    description: "View and manage maintenance tickets assigned to you.",
+    id: "maintenance",
+    title: "Maintenance",
+    description: "Track and manage maintenance and incident tickets (staff queue).",
     iconBg: "bg-amber-500/20 text-amber-400",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -73,24 +73,6 @@ const tiles = [
   },
 ];
 
-const assignedTickets = [
-  { id: "TK-4821", location: "Block C", title: "Faulty projector", status: "OPEN", priority: "High" },
-  { id: "TK-4816", location: "Admin wing", title: "AC not cooling", status: "IN_PROGRESS", priority: "Medium" },
-  { id: "TK-4809", location: "Lab 3", title: "Broken door lock", status: "RESOLVED", priority: "Low" },
-];
-
-function priorityClass(priority) {
-  if (priority === "High") return "text-red-300 bg-red-500/15";
-  if (priority === "Medium") return "text-amber-200 bg-amber-500/15";
-  return "text-slate-300 bg-slate-500/20";
-}
-
-function statusClass(status) {
-  if (status === "OPEN") return "text-cyan-200 bg-cyan-500/15";
-  if (status === "IN_PROGRESS") return "text-amber-200 bg-amber-500/15";
-  return "text-emerald-200 bg-emerald-500/15";
-}
-
 function formatDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Unknown time";
@@ -107,6 +89,7 @@ function CloseIcon() {
 
 export default function TechnicianDashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const displayName = user?.name || "Technician";
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -170,7 +153,7 @@ export default function TechnicianDashboardPage() {
           </div>
           <div className="flex shrink-0 flex-wrap gap-3">
             <Link
-              to="/maintenance"
+              to="/tickets"
               className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
             >
               Maintenance
@@ -204,7 +187,9 @@ export default function TechnicianDashboardPage() {
 
         <div className="mt-12">
           <h2 className="font-heading text-lg font-semibold text-white">Your tools</h2>
-          <p className="mt-1 text-sm text-slate-400">Tap a card to open details in a popup.</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Tap a card for details. Maintenance opens the ticket queue in a full page.
+          </p>
         </div>
 
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
@@ -319,33 +304,6 @@ export default function TechnicianDashboardPage() {
                 </div>
               )}
 
-              {modal === "assigned-tickets" && (
-                <div className="space-y-4 text-sm text-slate-400">
-                  <p>Tickets currently assigned to you.</p>
-                  <ul className="space-y-3">
-                    {assignedTickets.map((ticket) => (
-                      <li key={ticket.id} className="rounded-xl border border-slate-600/50 bg-slate-950/50 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-mono text-xs text-slate-500">{ticket.id}</p>
-                            <p className="mt-1 font-medium text-slate-200">{ticket.title}</p>
-                            <p className="text-xs text-slate-500">{ticket.location}</p>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityClass(ticket.priority)}`}>
-                              {ticket.priority}
-                            </span>
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(ticket.status)}`}>
-                              {ticket.status}
-                            </span>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {modal === "update-status" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>Change ticket progress using this sequence:</p>
@@ -364,7 +322,11 @@ export default function TechnicianDashboardPage() {
                     </li>
                   </ol>
                   <p className="text-xs text-slate-500">
-                    In production, these updates should sync with the <Link to="/maintenance" className="text-cyan-400 hover:text-cyan-300">Maintenance</Link> workflow and audit log.
+                    In production, these updates should sync with the{" "}
+                    <Link to="/tickets/manage" className="text-cyan-400 hover:text-cyan-300">
+                      ticket queue
+                    </Link>{" "}
+                    and audit log.
                   </p>
                 </div>
               )}

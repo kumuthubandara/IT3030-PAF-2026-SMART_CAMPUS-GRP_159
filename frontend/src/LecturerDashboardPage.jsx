@@ -75,7 +75,7 @@ const tiles = [
   {
     id: "maintenance",
     title: "Classroom & facility issues",
-    description: "Log problems in your teaching spaces and track fixes.",
+    description: "Open maintenance tickets for your teaching spaces—submit and track issues.",
     iconBg: "bg-amber-500/20 text-amber-400",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -255,8 +255,7 @@ export default function LecturerDashboardPage() {
         <div className="mt-12">
           <h2 className="font-heading text-lg font-semibold text-white">Lecturer tools</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Open a card for details. This layout is separate from the student and operations
-            dashboards.
+            Open a card for details. Maintenance opens the ticket flow in a full page.
           </p>
         </div>
 
@@ -267,7 +266,7 @@ export default function LecturerDashboardPage() {
               type="button"
               onClick={() => {
                 if (tile.id === "maintenance") {
-                  navigate("/lecturer/maintenance");
+                  navigate("/tickets");
                   return;
                 }
                 setModal(tile.id);
@@ -455,22 +454,6 @@ export default function LecturerDashboardPage() {
                   </ul>
                   <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
                     No active equipment reservations (demo).
-                  </div>
-                </div>
-              )}
-
-              {modal === "maintenance" && (
-                <div className="space-y-4 text-sm text-slate-400">
-                  <p>
-                    Report projector, seating, or climate issues in your teaching rooms. Link to
-                    the full{" "}
-                    <Link to="/maintenance" className="font-medium text-cyan-400 hover:text-cyan-300">
-                      Maintenance
-                    </Link>{" "}
-                    area for campus-wide context.
-                  </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No open lecturer tickets (demo).
                   </div>
                 </div>
               )}
