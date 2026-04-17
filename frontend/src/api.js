@@ -4,14 +4,37 @@ export function getApiBaseUrl() {
   return API_BASE_URL.replace(/\/+$/, "");
 }
 
-export async function apiGet(path, headers = {}) {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    headers,
-  });
+async function parseResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  const body = contentType.includes("application/json")
+    ? await response.json()
+    : await response.text();
+
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
+    const message =
+      typeof body === "object" && body?.message
+        ? body.message
+        : `Request failed (${response.status})`;
+    throw new Error(message);
   }
-  return response.json();
+  return body;
+}
+
+export async function apiGet(path, headers = {}) {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, { headers });
+  return parseResponse(response);
+}
+
+export async function apiPost(path, data, headers = {}) {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify(data),
+  });
+  return parseResponse(response);
 }
 
 export async function apiPatch(path, headers = {}) {
@@ -19,8 +42,5 @@ export async function apiPatch(path, headers = {}) {
     method: "PATCH",
     headers,
   });
-  if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`);
-  }
-  return response.json();
+  return parseResponse(response);
 }

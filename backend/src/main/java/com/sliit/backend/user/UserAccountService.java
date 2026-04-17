@@ -33,6 +33,7 @@ public class UserAccountService {
         user.setName(name);
         user.setProvider(provider);
         user.setProviderId(providerId);
+        user.setPasswordHash(null);
         user.setUpdatedAt(Instant.now());
         return userAccountRepository.save(user);
     }

@@ -15,6 +15,7 @@ public class UserAccount {
     private UserRole role;
     private String provider;
     private String providerId;
+    private String passwordHash;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -64,6 +65,14 @@ public class UserAccount {
 
     public void setProviderId(String providerId) {
         this.providerId = providerId;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 
     public Instant getCreatedAt() {

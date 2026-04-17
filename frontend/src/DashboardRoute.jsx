@@ -17,7 +17,7 @@ export default function DashboardRoute() {
     .trim()
     .toLowerCase();
 
-  if (role === "student") {
+  if (role === "student" || role === "user") {
     return <StudentDashboardPage />;
   }
   if (role === "lecturer") {
