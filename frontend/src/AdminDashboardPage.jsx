@@ -6,8 +6,7 @@ import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
 
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-const RESOURCE_API_URL = "http://localhost:8081/api/resources";
+
 
 function readContactMessages() {
   try {

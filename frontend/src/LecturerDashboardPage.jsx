@@ -4,7 +4,7 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 const tiles = [
   {

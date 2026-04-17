@@ -22,7 +22,7 @@ public class ResourceController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Resource> getResourceById(@PathVariable Long id) {
+    public ResponseEntity<Resource> getResourceById(@PathVariable String id) {
         return ResponseEntity.ok(resourceService.getResourceById(id));
     }
 
@@ -32,12 +32,12 @@ public class ResourceController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Resource> updateResource(@PathVariable Long id, @RequestBody Resource resource) {
+    public ResponseEntity<Resource> updateResource(@PathVariable String id, @RequestBody Resource resource) {
         return ResponseEntity.ok(resourceService.updateResource(id, resource));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteResource(@PathVariable Long id) {
+    public ResponseEntity<String> deleteResource(@PathVariable String id) {
         resourceService.deleteResource(id);
         return ResponseEntity.ok("Resource deleted successfully");
     }

@@ -1,45 +1,30 @@
 package com.sliit.backend.contact;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "contact_messages")
+@Document(collection = "contact_messages")
 public class ContactMessage {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false, length = 50)
     private String name;
 
-    @Column(nullable = false, length = 120)
     private String email;
 
-    @Column(nullable = false, length = 20)
     private String phone;
 
-    @Column(nullable = false, length = 120)
     private String subject;
 
-    @Column(nullable = false, length = 2000)
     private String message;
 
-    @Column(nullable = false, length = 20)
     private String status;
 
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @PrePersist
     void onCreate() {
         if (status == null || status.isBlank()) {
             status = "NEW";
@@ -49,11 +34,11 @@ public class ContactMessage {
         }
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
