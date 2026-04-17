@@ -7,7 +7,12 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = {"com.sliit.backend.activity"})
-@EnableMongoRepositories(basePackages = {"com.sliit.backend.resource", "com.sliit.backend.contact"})
+@EnableMongoRepositories(basePackages = {
+		"com.sliit.backend.resource",
+		"com.sliit.backend.contact",
+		"com.sliit.backend.notification",
+		"com.sliit.backend.user"
+})
 public class BackendApplication {
 
 	public static void main(String[] args) {
