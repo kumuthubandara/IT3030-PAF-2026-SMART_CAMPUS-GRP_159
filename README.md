@@ -45,6 +45,14 @@ If the password contains special URL characters, URL-encode them in the URI.
 
 ### 1) Backend
 
+**Java / `JAVA_HOME`:** This API targets **JDK 17** (`backend/pom.xml` → `java.version`). Maven Wrapper does **not** read `JAVA_HOME` from `backend/.env` — set it in Windows (System Environment Variables) or for one PowerShell session:
+
+```powershell
+$env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.13.11-hotspot"   # your JDK 17 install folder (must contain bin\java.exe)
+$env:Path = "$env:JAVA_HOME\bin;$env:Path"
+java -version
+```
+
 From `backend/`:
 
 ```powershell
