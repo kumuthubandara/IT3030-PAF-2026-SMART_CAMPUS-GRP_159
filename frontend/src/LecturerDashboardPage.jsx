@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
@@ -6,6 +6,10 @@ import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
 import ManagedBookingsListSection from "./features/bookings/components/ManagedBookingsListSection.jsx";
 import * as lecturerBookingsApi from "./features/bookings/api/lecturerBookingsApi.js";
+import { isLecturerSpaceBookingResourceType } from "./features/bookings/components/lecturer/lecturerResourceCategories.js";
+import BookingStatusBadge from "./components/student-bookings/BookingStatusBadge.jsx";
+import { normalizeBookingRow } from "./components/student-bookings/MyBookings.jsx";
+import { compareMyBookingsPendingFirstThenStart } from "./features/bookings/utils/bookingListSort.js";
 import { recentActivitiesListUrl } from "./services/recentActivitiesApi.js";
 
 const tiles = [
@@ -27,8 +31,8 @@ const tiles = [
   },
   {
     id: "schedule",
-    title: "Teaching schedule",
-    description: "This week’s sessions, rooms, and cohorts in one glance.",
+    title: "My Teaching schedule",
+    description: "View your upcoming lectures, labs, and assigned venues.",
     iconBg: "bg-violet-500/20 text-violet-300",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -108,13 +112,26 @@ const tiles = [
   },
 ];
 
-const weekSessions = [
-  { day: "Mon", module: "IT3030 — PAF", room: "Lab A", time: "08:30 – 11:30" },
-  { day: "Tue", module: "CS2010 — Data Structures", room: "Hall 2B", time: "13:00 – 15:00" },
-  { day: "Wed", module: "IT3030 — PAF (tutorial)", room: "Lab A", time: "10:00 – 12:00" },
-  { day: "Thu", module: "Office hours", room: "Block C — 204", time: "14:00 – 16:00" },
-  { day: "Fri", module: "CS2010 — Lab", room: "Lab B", time: "09:00 – 11:00" },
-];
+function shortWeekdayFromIso(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, { weekday: "short" });
+}
+
+/** Monday–Sunday week range in local time, e.g. "14 Apr 2026 - 20 Apr 2026". */
+function formatTeachingWeekRangeLabel() {
+  const now = new Date();
+  const dow = now.getDay();
+  const offsetMonday = dow === 0 ? -6 : 1 - dow;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + offsetMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const opts = { day: "numeric", month: "short", year: "numeric" };
+  return `${monday.toLocaleDateString(undefined, opts)} - ${sunday.toLocaleDateString(undefined, opts)}`;
+}
 
 function formatAccountCreated(iso) {
   if (!iso || typeof iso !== "string") return "—";
@@ -141,12 +158,22 @@ function CloseIcon() {
   );
 }
 
+function scheduleListIdentityKey(user) {
+  if (!user) return "";
+  const email = String(user.email ?? "").trim().toLowerCase();
+  return email || "_no_email_";
+}
+
 export default function LecturerDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const displayName = user?.name || "Lecturer";
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
+  const [facilityScheduleRows, setFacilityScheduleRows] = useState([]);
+  const [facilityScheduleLoading, setFacilityScheduleLoading] = useState(false);
+  const lastScheduleListIdentityRef = useRef("");
+  const scheduleListIdentity = scheduleListIdentityKey(user);
 
   async function loadRecentActivities() {
     try {
@@ -184,6 +211,38 @@ export default function LecturerDashboardPage() {
     return () => clearInterval(id);
   }, [user]);
 
+  useEffect(() => {
+    if (modal !== "schedule" || !user) {
+      return;
+    }
+    let cancelled = false;
+    async function loadFacilitySchedule() {
+      if (lastScheduleListIdentityRef.current !== scheduleListIdentity) {
+        lastScheduleListIdentityRef.current = scheduleListIdentity;
+        setFacilityScheduleRows([]);
+      }
+      setFacilityScheduleLoading(true);
+      try {
+        const data = await lecturerBookingsApi.fetchMyBookings(user);
+        if (cancelled) return;
+        const rawList = Array.isArray(data) ? data : [];
+        const spaceRows = rawList
+          .filter((raw) => isLecturerSpaceBookingResourceType(normalizeBookingRow(raw).resourceType))
+          .map(normalizeBookingRow)
+          .sort(compareMyBookingsPendingFirstThenStart);
+        setFacilityScheduleRows(spaceRows);
+      } catch {
+        if (!cancelled) setFacilityScheduleRows([]);
+      } finally {
+        if (!cancelled) setFacilityScheduleLoading(false);
+      }
+    }
+    void loadFacilitySchedule();
+    return () => {
+      cancelled = true;
+    };
+  }, [modal, scheduleListIdentity, user]);
+
   const activeTile = tiles.find((t) => t.id === modal);
 
   return (
@@ -207,21 +266,28 @@ export default function LecturerDashboardPage() {
               console.
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              Demo view · Sample schedule · Wire to your timetable API when ready
+              Open <strong className="text-slate-400">My Teaching schedule</strong> for this week&apos;s bookings —
+              synced from Smart Campus facility requests.
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-3">
-            <Link
-              to="/facilities"
-              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
-            >
-              Facilities
-            </Link>
             <Link
               to="/"
               className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
             >
               Home
+            </Link>
+            <Link
+              to="/contact"
+              className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
+            >
+              Contact
+            </Link>
+            <Link
+              to="/lecturer/bookings"
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400/60 hover:text-white"
+            >
+              Book resources
             </Link>
           </div>
         </div>
@@ -299,11 +365,13 @@ export default function LecturerDashboardPage() {
             <span className="text-xs text-slate-500">Auto refreshes every 10s</span>
           </div>
           <p className="mt-1 text-sm text-slate-400">
-            View your latest bookings, ticket updates, and actions.
+            Shows <strong className="text-slate-300">your approved bookings</strong> only — pending requests and other
+            noise are hidden. Use <strong className="text-slate-300">My bookings</strong> or the bookings page for the
+            full list.
           </p>
           {recentActivities.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-600/60 bg-slate-900/50 p-6 text-sm text-slate-500">
-              No recent activity yet.
+              No approved bookings to show yet. When staff approve a request you submitted, it will appear here.
             </div>
           ) : (
             <ul className="mt-4 space-y-3 rounded-2xl border border-violet-500/15 bg-slate-900/70 p-4">
@@ -337,7 +405,9 @@ export default function LecturerDashboardPage() {
             aria-modal="true"
             aria-labelledby="lecturer-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-violet-500/25 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" || modal === "rooms" || modal === "equipment" ? "max-w-2xl" : "max-w-lg"
+              modal === "settings" || modal === "rooms" || modal === "equipment" || modal === "schedule"
+                ? "max-w-2xl"
+                : "max-w-lg"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-violet-500/15 pb-4">
@@ -352,7 +422,9 @@ export default function LecturerDashboardPage() {
                   className={`font-heading font-semibold text-white ${
                     activeTile.id === "rooms"
                       ? "text-base leading-snug sm:text-lg"
-                      : "text-xl sm:text-2xl"
+                      : activeTile.id === "schedule"
+                        ? "text-lg leading-tight sm:text-xl"
+                        : "text-xl sm:text-2xl"
                   }`}
                 >
                   {activeTile.title}
@@ -403,25 +475,65 @@ export default function LecturerDashboardPage() {
 
               {modal === "schedule" && (
                 <div className="space-y-4 text-sm text-slate-400">
-                  <p>Sample teaching week — replace with data from your academic system.</p>
-                  <ul className="divide-y divide-slate-600/40 rounded-xl border border-slate-600/50">
-                    {weekSessions.map((row) => (
-                      <li
-                        key={`${row.day}-${row.module}`}
-                        className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                      >
-                        <div>
-                          <p className="font-medium text-slate-200">{row.module}</p>
-                          <p className="text-xs text-slate-500">{row.room}</p>
-                        </div>
-                        <div className="text-right text-xs text-slate-400">
-                          <span className="font-semibold text-violet-300">{row.day}</span>
-                          <span className="mx-1 text-slate-600">·</span>
-                          {row.time}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  <header className="border-b border-slate-600/50 pb-4">
+                    <p className="text-xs font-semibold uppercase tracking-widest text-violet-300/90">
+                      {formatTeachingWeekRangeLabel()}
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                      View your upcoming lectures, labs, and assigned venues. Rows below are your{" "}
+                      <strong className="text-slate-200">Smart Campus</strong> space bookings (purpose as session title,
+                      venue as location).{" "}
+                      <Link to="/lecturer/bookings" className="font-medium text-cyan-400 hover:text-cyan-300">
+                        Manage bookings
+                      </Link>
+                      .
+                    </p>
+                  </header>
+                  {facilityScheduleLoading ? (
+                    <p className="text-xs text-slate-500">Loading…</p>
+                  ) : facilityScheduleRows.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-600/50 bg-slate-950/50 px-4 py-8 text-center text-slate-500">
+                      No bookings in this view yet.{" "}
+                      <Link to="/facilities" className="text-cyan-400 hover:text-cyan-300">
+                        Facilities
+                      </Link>{" "}
+                      ·{" "}
+                      <Link to="/lecturer/bookings" className="text-cyan-400 hover:text-cyan-300">
+                        My bookings
+                      </Link>
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-slate-600/40 rounded-xl border border-slate-600/50">
+                      {facilityScheduleRows.map((row) => {
+                        const purposeLine =
+                          row.purpose && row.purpose !== "—" ? String(row.purpose).trim() : "";
+                        const titleLine = purposeLine || row.roomName;
+                        const venueLine = purposeLine
+                          ? row.roomName
+                          : row.resourceType && String(row.resourceType) !== "—"
+                            ? row.resourceType
+                            : "—";
+                        return (
+                          <li key={row.id} className="px-4 py-4">
+                            <p className="font-heading text-base font-semibold text-white">{titleLine}</p>
+                            <p className="mt-0.5 text-sm text-slate-400">{venueLine}</p>
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-700/40 pt-3">
+                              <p className="text-sm text-slate-300">
+                                <span className="font-semibold text-violet-300">
+                                  {shortWeekdayFromIso(row.rawStart)}
+                                </span>
+                                <span className="mx-1.5 text-slate-600">•</span>
+                                <span className="tabular-nums text-slate-300">
+                                  {String(row.timeRangeLabel).replace(/\u2013/g, "-")}
+                                </span>
+                              </p>
+                              <BookingStatusBadge status={row.status} variant="schedule" />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </div>
               )}
 

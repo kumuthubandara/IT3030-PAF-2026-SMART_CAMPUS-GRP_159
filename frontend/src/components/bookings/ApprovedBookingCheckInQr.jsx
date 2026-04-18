@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { useToast } from "../ToastProvider.jsx";
-import { buildCheckInPageUrl } from "../../utils/checkInUrl.js";
+import { buildCheckInPageUrl, checkInUrlIsLocalhostOnly } from "../../utils/checkInUrl.js";
 
 /**
  * @param {object} props
@@ -11,6 +11,7 @@ import { buildCheckInPageUrl } from "../../utils/checkInUrl.js";
 export default function ApprovedBookingCheckInQr({ bookingId, audience = "student" }) {
   const { showToast } = useToast();
   const url = buildCheckInPageUrl(bookingId);
+  const localhostQr = checkInUrlIsLocalhostOnly(url);
   const ring = audience === "lecturer" ? "border-violet-500/35" : "border-cyan-500/35";
   const [copyState, setCopyState] = useState("idle");
 
@@ -29,6 +30,15 @@ export default function ApprovedBookingCheckInQr({ bookingId, audience = "studen
 
   return (
     <div className={`inline-flex max-w-[min(100%,16rem)] flex-col items-stretch rounded-xl border ${ring} bg-slate-900/40 p-2.5`}>
+      {localhostQr ? (
+        <p className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[9px] leading-snug text-amber-100">
+          <span className="font-semibold text-amber-200">Phone scan:</span> this link uses{" "}
+          <span className="font-mono">localhost</span> — your phone opens its own device, not this PC. In{" "}
+          <span className="font-mono">frontend/.env</span> set{" "}
+          <span className="break-all font-mono text-amber-50/90">VITE_PUBLIC_APP_ORIGIN=http://192.168.x.x:5173</span>{" "}
+          (same Wi‑Fi), restart <span className="font-mono">npm run dev</span>, then open this QR again.
+        </p>
+      ) : null}
       <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400">
         Check-in QR
       </p>

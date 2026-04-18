@@ -8,6 +8,7 @@ import {
   categoryIdForResource,
   LECTURER_BOOKING_TABS,
   LECTURER_SPACE_BOOKING_TABS,
+  TECHNICIAN_BOOKING_TABS,
   isLecturerSpaceResource,
 } from "./lecturer/lecturerResourceCategories.js";
 import ManagedBookingsListSection from "./ManagedBookingsListSection.jsx";
@@ -34,6 +35,14 @@ const COPY = {
       dashboard <strong className="text-slate-200">Equipment booking</strong> tile for kit requests.
     </>
   ),
+  technician: (
+    <>
+      This page lists <strong className="text-cyan-200/90">equipment</strong> you are allowed to book as a technician
+      — the same catalogue as on <strong className="text-slate-200">Facilities</strong>. New requests are{" "}
+      <strong className="text-amber-200/90">PENDING</strong> until an administrator approves or rejects them. The
+      server blocks overlapping reservations for the same resource.
+    </>
+  ),
 };
 
 const TAB_SKIN = {
@@ -45,11 +54,15 @@ const TAB_SKIN = {
     active: "bg-violet-500 text-white shadow",
     idle: "border border-slate-600 text-slate-300 hover:border-violet-400/50 hover:text-white",
   },
+  technician: {
+    active: "bg-cyan-500 text-slate-950 shadow",
+    idle: "border border-slate-600 text-slate-300 hover:border-cyan-400/50 hover:text-white",
+  },
 };
 
 /**
  * @param {object} props
- * @param {'student'|'lecturer'} props.audience
+ * @param {'student'|'lecturer'|'technician'} props.audience
  * @param {Record<string, unknown>} props.user
  * @param {string} [props.defaultTabId]
  */
@@ -64,7 +77,12 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tabId, setTabId] = useState(() => normalizeDefaultTab(audience, defaultTabId));
-  const bookingTabs = audience === "lecturer" ? LECTURER_SPACE_BOOKING_TABS : LECTURER_BOOKING_TABS;
+  const bookingTabs =
+    audience === "lecturer"
+      ? LECTURER_SPACE_BOOKING_TABS
+      : audience === "technician"
+        ? TECHNICIAN_BOOKING_TABS
+        : LECTURER_BOOKING_TABS;
   const [bookingResource, setBookingResource] = useState(null);
   const [myBookingsRefreshKey, setMyBookingsRefreshKey] = useState(0);
   const tabSkin = TAB_SKIN[audience] || TAB_SKIN.student;
@@ -78,13 +96,21 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
           updateBooking: studentBookingsApi.updateBooking,
           fetchResourceById: studentBookingsApi.fetchResourceById,
         }
-      : {
-          fetchMyBookings: lecturerBookingsApi.fetchMyBookings,
-          deleteBooking: lecturerBookingsApi.deleteBooking,
-          cancelBooking: lecturerBookingsApi.cancelApprovedBooking,
-          updateBooking: lecturerBookingsApi.updateBooking,
-          fetchResourceById: lecturerBookingsApi.fetchResourceById,
-        };
+      : audience === "technician"
+        ? {
+            fetchMyBookings: studentBookingsApi.fetchMyBookings,
+            deleteBooking: studentBookingsApi.deleteMyBooking,
+            cancelBooking: (id, u) => studentBookingsApi.cancelBooking(id, u, {}),
+            updateBooking: studentBookingsApi.updateBooking,
+            fetchResourceById: studentBookingsApi.fetchResourceById,
+          }
+        : {
+            fetchMyBookings: lecturerBookingsApi.fetchMyBookings,
+            deleteBooking: lecturerBookingsApi.deleteBooking,
+            cancelBooking: lecturerBookingsApi.cancelApprovedBooking,
+            updateBooking: lecturerBookingsApi.updateBooking,
+            fetchResourceById: lecturerBookingsApi.fetchResourceById,
+          };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,9 +118,14 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
     try {
       let list = await fetchBookableResources(user);
       if (audience === "lecturer") {
-        list = list.filter(isLecturerSpaceResource);
+        // Same visibility rules as Facilities (lecturer): halls/labs always; meeting & library only if not student-only; no equipment on this page.
+        list = list.filter(
+          (r) => isLecturerSpaceResource(r) && canViewResourceForRole(r, "lecturer"),
+        );
       } else if (audience === "student") {
         list = list.filter((r) => canViewResourceForRole(r, "student"));
+      } else if (audience === "technician") {
+        list = list.filter((r) => canViewResourceForRole(r, "technician"));
       }
       setResources(list);
     } catch (e) {
@@ -142,7 +173,7 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
 
   return (
     <div className="space-y-6 text-sm text-slate-400">
-      <p>{COPY[audience] || COPY.student}</p>
+      <p>{COPY[audience] ?? COPY.student}</p>
 
       {loading ? <p className="text-slate-500">Loading resources…</p> : null}
       {error ? (
@@ -197,7 +228,11 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
       ) : null}
 
       {!loading && !error && resources.length === 0 ? (
-        <p className="text-slate-500">No bookable resources found. Add facilities from the admin dashboard.</p>
+        <p className="text-slate-500">
+          {audience === "technician"
+            ? "No equipment resources are available for your technician account yet. They must match what you see on Facilities (ACTIVE equipment for technicians). Add or tag items from the admin dashboard."
+            : "No bookable resources found. Add facilities from the admin dashboard."}
+        </p>
       ) : null}
 
       <BookingModal
@@ -218,9 +253,11 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
         bookingScope={
           audience === "lecturer"
             ? "lecturerSpaces"
-            : tabId === "equipment"
+            : audience === "technician"
               ? "equipment"
-              : undefined
+              : tabId === "equipment"
+                ? "equipment"
+                : undefined
         }
         fetchMyBookings={listApi.fetchMyBookings}
         deleteBooking={listApi.deleteBooking}

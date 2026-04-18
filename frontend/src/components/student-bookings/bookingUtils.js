@@ -1,9 +1,35 @@
+/** Booking purpose: same rules on every form that uses {@link validateBookingFields}. */
+export const PURPOSE_MIN_LENGTH = 3;
+export const PURPOSE_MAX_LENGTH = 500;
+
 /** @param {string|undefined} type */
 export function isMeetingRoomType(type) {
   return String(type ?? "")
     .trim()
     .toLowerCase()
     .includes("meeting");
+}
+
+/**
+ * Meeting rooms: students 5–8 (capped by room capacity); lecturers/staff 1–8 (capped by capacity).
+ * Other resources: min 1, max = capacity when known.
+ * @param {Record<string, unknown>|null|undefined} resource
+ * @param {string | undefined} bookerRole — e.g. user.role from Auth
+ * @returns {{ min: number, max: number | undefined }}
+ */
+export function getExpectedAttendeeBoundsForBooking(resource, bookerRole) {
+  const role = String(bookerRole ?? "")
+    .trim()
+    .toLowerCase();
+  const cap = getResourceCapacityMax(resource);
+  if (!isMeetingRoomType(resource?.type)) {
+    return { min: 1, max: cap ?? undefined };
+  }
+  const capMax = cap != null ? Math.min(8, cap) : 8;
+  if (role === "student") {
+    return { min: 5, max: capMax };
+  }
+  return { min: 1, max: capMax };
 }
 
 /**
@@ -108,8 +134,6 @@ export function nowTimeString() {
 const CAMPUS_OPEN_MINUTES = 8 * 60; // 08:00
 const CAMPUS_CLOSE_MINUTES = 20 * 60; // 20:00
 const MIN_BOOKING_DURATION_MINUTES = 30;
-const PURPOSE_MIN_LENGTH = 3;
-const PURPOSE_MAX_LENGTH = 500;
 
 /**
  * @param {string} value HH:mm from controlled inputs (usually zero-padded)
@@ -152,11 +176,11 @@ function getTypicalAvailabilityMinutes(resource) {
 
 /**
  * @param {object} fields
- * @param {number|null} capacityMax
- * @param {Record<string, unknown>|null|undefined} [resource] — used for typical availability (availableFrom / availableTo)
+ * @param {Record<string, unknown>|null|undefined} [resource] — availability + attendee bounds
+ * @param {string | undefined} [bookerRole] — student vs lecturer affects meeting-room attendee bounds
  * @returns {{ ok: true } | { ok: false, message: string }}
  */
-export function validateBookingFields(fields, capacityMax, resource) {
+export function validateBookingFields(fields, resource, bookerRole) {
   const { bookingDate, startTime, endTime, purpose, expectedAttendees } = fields;
   if (!bookingDate?.trim()) return { ok: false, message: "Booking date is required." };
   if (!startTime?.trim()) return { ok: false, message: "Start time is required." };
@@ -178,7 +202,29 @@ export function validateBookingFields(fields, capacityMax, resource) {
   if (!Number.isFinite(attendees) || !Number.isInteger(attendees)) {
     return { ok: false, message: "Expected attendees must be a whole number." };
   }
-  if (attendees < 1) return { ok: false, message: "Expected attendees must be at least 1." };
+
+  const bounds = getExpectedAttendeeBoundsForBooking(resource, bookerRole);
+  if (attendees < bounds.min) {
+    if (isMeetingRoomType(resource?.type) && String(bookerRole ?? "").trim().toLowerCase() === "student") {
+      return {
+        ok: false,
+        message: `For meeting rooms, students must enter at least ${bounds.min} expected attendees (policy: 5–8).`,
+      };
+    }
+    return { ok: false, message: `Expected attendees must be at least ${bounds.min}.` };
+  }
+  if (bounds.max != null && attendees > bounds.max) {
+    if (isMeetingRoomType(resource?.type)) {
+      return {
+        ok: false,
+        message: `For meeting rooms, expected attendees may not exceed ${bounds.max} (maximum 8, or lower if the room is smaller).`,
+      };
+    }
+    return {
+      ok: false,
+      message: `Expected attendees cannot exceed room capacity (${bounds.max}).`,
+    };
+  }
 
   const startMin = bookingTimeToMinutes(startTime);
   const endMin = bookingTimeToMinutes(endTime);
@@ -224,13 +270,6 @@ export function validateBookingFields(fields, capacityMax, resource) {
     if (nowMin != null && startMin < nowMin) {
       return { ok: false, message: "Start time cannot be in the past for today." };
     }
-  }
-
-  if (capacityMax != null && attendees > capacityMax) {
-    return {
-      ok: false,
-      message: `Expected attendees cannot exceed room capacity (${capacityMax}).`,
-    };
   }
 
   return { ok: true };

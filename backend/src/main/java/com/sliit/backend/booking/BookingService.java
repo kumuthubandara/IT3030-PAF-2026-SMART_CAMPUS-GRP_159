@@ -48,7 +48,13 @@ public class BookingService {
         Resource resource = loadBookableResource(request.getResourceId());
         Instant start = parseInstant(request.getStartDateTime());
         Instant end = parseInstant(request.getEndDateTime());
-        validateTimesAndCapacity(resource, start, end, request.getExpectedAttendees(), null);
+        validateTimesAndCapacity(
+                resource,
+                start,
+                end,
+                request.getExpectedAttendees(),
+                null,
+                normalizeRequesterRole(request.getRequesterRole()));
 
         Booking booking = new Booking();
         applyResourceSnapshot(booking, resource);
@@ -93,7 +99,13 @@ public class BookingService {
         Resource resource = loadBookableResource(request.getResourceId());
         Instant start = parseInstant(request.getStartDateTime());
         Instant end = parseInstant(request.getEndDateTime());
-        validateTimesAndCapacity(resource, start, end, request.getExpectedAttendees(), bookingId);
+        validateTimesAndCapacity(
+                resource,
+                start,
+                end,
+                request.getExpectedAttendees(),
+                bookingId,
+                normalizeRequesterRole(booking.getRequesterRole()));
 
         applyResourceSnapshot(booking, resource);
         booking.setStartDateTime(start);
@@ -305,18 +317,66 @@ public class BookingService {
         return resource;
     }
 
-    private void validateTimesAndCapacity(Resource resource, Instant start, Instant end, int attendees, String excludeBookingId) {
+    private void validateTimesAndCapacity(
+            Resource resource,
+            Instant start,
+            Instant end,
+            int attendees,
+            String excludeBookingId,
+            String requesterRoleNormalized) {
         if (!end.isAfter(start)) {
             throw new IllegalArgumentException("End time must be after start time");
         }
-        Integer cap = resource.getCapacity();
-        if (cap != null && attendees > cap) {
-            throw new IllegalArgumentException("Expected attendees exceeds resource capacity");
+        if (isMeetingRoomType(resource)) {
+            validateMeetingRoomAttendees(resource, attendees, requesterRoleNormalized);
+        } else {
+            Integer cap = resource.getCapacity();
+            if (cap != null && attendees > cap) {
+                throw new IllegalArgumentException("Expected attendees exceeds resource capacity");
+            }
         }
         if (hasOverlap(resource.getId(), start, end, excludeBookingId)) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
                     "This time range overlaps an existing booking for this resource.");
+        }
+    }
+
+    private static boolean isMeetingRoomType(Resource resource) {
+        String type = resource.getType();
+        if (type == null) {
+            return false;
+        }
+        return type.trim().toLowerCase(Locale.ROOT).contains("meeting");
+    }
+
+    /**
+     * Meeting rooms: students 5–8 (capped by capacity); other roles 1–8 (capped by capacity).
+     */
+    private static void validateMeetingRoomAttendees(Resource resource, int attendees, String requesterRoleNormalized) {
+        Integer cap = resource.getCapacity();
+        int maxAllowed = 8;
+        if (cap != null) {
+            maxAllowed = Math.min(maxAllowed, cap);
+        }
+        String role = requesterRoleNormalized != null ? requesterRoleNormalized.trim().toLowerCase(Locale.ROOT) : "";
+        if ("student".equals(role)) {
+            if (attendees < 5) {
+                throw new IllegalArgumentException(
+                        "For meeting rooms, student bookings require at least 5 expected attendees.");
+            }
+            if (attendees > maxAllowed) {
+                throw new IllegalArgumentException(
+                        "For meeting rooms, student bookings may not exceed " + maxAllowed + " expected attendees.");
+            }
+        } else {
+            if (attendees < 1) {
+                throw new IllegalArgumentException("Expected attendees must be at least 1");
+            }
+            if (attendees > maxAllowed) {
+                throw new IllegalArgumentException(
+                        "For meeting rooms, expected attendees may not exceed " + maxAllowed + ".");
+            }
         }
     }
 

@@ -40,6 +40,9 @@ export const LECTURER_SPACE_BOOKING_TABS = [
   { id: "workspace", label: "Library workspaces" },
 ];
 
+/** Tabs on `/technician/bookings` — equipment only (matches Facilities technician view). */
+export const TECHNICIAN_BOOKING_TABS = [{ id: "all", label: "All" }];
+
 export const LECTURER_BOOKING_TABS = [
   { id: "all", label: "All" },
   { id: "lecture", label: "Lecture halls" },

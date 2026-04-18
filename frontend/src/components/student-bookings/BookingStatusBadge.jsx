@@ -13,8 +13,36 @@ function normalizeStatus(status) {
   return "PENDING";
 }
 
-export default function BookingStatusBadge({ status }) {
+const SCHEDULE_LABELS = {
+  APPROVED: "Confirmed",
+  PENDING: "Pending",
+  REJECTED: "Rejected",
+  CANCELLED: "Cancelled",
+};
+
+/**
+ * @param {object} props
+ * @param {string} props.status
+ * @param {'default' | 'schedule'} [props.variant]
+ */
+export default function BookingStatusBadge({ status, variant = "default" }) {
   const key = normalizeStatus(status);
+  if (variant === "schedule") {
+    const text = SCHEDULE_LABELS[key] || "Pending";
+    const tone =
+      key === "APPROVED"
+        ? "text-emerald-300/95"
+        : key === "PENDING"
+          ? "text-amber-200/95"
+          : key === "REJECTED"
+            ? "text-red-300/95"
+            : "text-slate-400";
+    return (
+      <span className={`text-xs font-semibold tracking-wide ${tone}`} aria-label={`Status: ${text}`}>
+        [{text}]
+      </span>
+    );
+  }
   const label = key === "APPROVED" ? "APPROVED" : key;
   return (
     <span

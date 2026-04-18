@@ -15,3 +15,9 @@ export function buildCheckInPageUrl(bookingId) {
   }
   return `/check-in/${id}`;
 }
+
+/** True when the QR/link will not work on another device (e.g. phone) because it targets this machine only. */
+export function checkInUrlIsLocalhostOnly(url) {
+  const u = String(url ?? "").trim().toLowerCase();
+  return u.startsWith("http://localhost") || u.startsWith("https://localhost") || u.includes("://127.0.0.1");
+}
