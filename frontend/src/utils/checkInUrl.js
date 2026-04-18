@@ -1,6 +1,7 @@
 /**
- * Absolute URL encoded in booking QR codes. Prefer `VITE_PUBLIC_APP_ORIGIN` when the app
- * is served behind a proxy and `window.location.origin` would be wrong for scanners.
+ * Absolute URL for the optional `/check-in/:id` web page (bookmarks / manual links).
+ * Booking QR codes use plain text instead; see `bookingQrPlainText.js`.
+ * Prefer `VITE_PUBLIC_APP_ORIGIN` when `window.location.origin` would be wrong.
  * @param {string} bookingId
  */
 export function buildCheckInPageUrl(bookingId) {
