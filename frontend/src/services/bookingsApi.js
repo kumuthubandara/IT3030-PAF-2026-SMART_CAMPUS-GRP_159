@@ -28,10 +28,12 @@
 
 import { apiUrl } from "../apiBase.js";
 
+/** requesterEmailForApi. */
 function requesterEmailForApi(user) {
   return String(user?.email ?? "").trim() || "student@campus.edu";
 }
 
+/** requesterRoleForApi. */
 function requesterRoleForApi(user) {
   const r = String(user?.role ?? "")
     .trim()
@@ -39,6 +41,7 @@ function requesterRoleForApi(user) {
   return r || undefined;
 }
 
+/** Helper: buildHeaders. */
 function buildHeaders(user) {
   const headers = { Accept: "application/json" };
   const token = user?.token ?? user?.accessToken;
@@ -48,6 +51,7 @@ function buildHeaders(user) {
   return headers;
 }
 
+/** Helper: parseJsonSafe. */
 async function parseJsonSafe(res) {
   const text = await res.text();
   if (!text) return null;
@@ -58,6 +62,7 @@ async function parseJsonSafe(res) {
   }
 }
 
+/** Helper: isMeetingResourceRow. */
 function isMeetingResourceRow(r) {
   return String(r?.type ?? "")
     .trim()
@@ -65,6 +70,7 @@ function isMeetingResourceRow(r) {
     .includes("meeting");
 }
 
+/** fetchMeetingRoomResources. */
 export async function fetchMeetingRoomResources(user) {
   const headers = buildHeaders(user);
   const attempts = [
@@ -137,6 +143,7 @@ export async function createBookingRequest(payload, user) {
   return data;
 }
 
+/** fetchMyBookings. */
 export async function fetchMyBookings(user) {
   const email = `?email=${encodeURIComponent(requesterEmailForApi(user))}`;
   const res = await fetch(apiUrl(`/api/bookings/my${email}`), {
@@ -185,6 +192,7 @@ export async function deleteMyBooking(bookingId, user) {
   return data;
 }
 
+/** fetchResourceById. */
 export async function fetchResourceById(id, user) {
   const res = await fetch(apiUrl(`/api/resources/${encodeURIComponent(id)}`), {
     headers: buildHeaders(user),
@@ -198,6 +206,7 @@ export async function fetchResourceById(id, user) {
   return data;
 }
 
+/** updateBooking. */
 export async function updateBooking(bookingId, payload, user) {
   const emailQs = `?email=${encodeURIComponent(requesterEmailForApi(user))}`;
   const res = await fetch(apiUrl(`/api/bookings/${encodeURIComponent(bookingId)}${emailQs}`), {

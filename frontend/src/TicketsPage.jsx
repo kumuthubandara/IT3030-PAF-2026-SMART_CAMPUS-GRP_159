@@ -12,12 +12,14 @@ import { ticketsApi } from "./api/ticketsApi";
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
 const STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "REJECTED"];
 
+/** UI: priorityBadge. */
 function priorityBadge(priority) {
   if (priority === "HIGH") return "bg-red-500/20 text-red-200";
   if (priority === "MEDIUM") return "bg-orange-500/20 text-orange-200";
   return "bg-green-500/20 text-green-200";
 }
 
+/** UI: TicketsPage. */
 export default function TicketsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -42,6 +44,7 @@ export default function TicketsPage() {
   // Product rule: admins do not originate tickets here; students/lecturers use dedicated flows.
   const canCreate = false;
 
+  /** Helper: loadTickets. */
   async function loadTickets() {
     if (!user) return;
     try {
@@ -60,6 +63,7 @@ export default function TicketsPage() {
     loadTickets();
   }, [user, filters.status, filters.priority, filters.q]);
 
+  /** Helper: handleCreate. */
   async function handleCreate(e) {
     e.preventDefault();
     try {
@@ -96,6 +100,7 @@ export default function TicketsPage() {
     }
   }
 
+  /** Helper: handleExportCsv. */
   async function handleExportCsv() {
     try {
       setError("");

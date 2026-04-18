@@ -5,6 +5,7 @@ const STYLES = {
   CANCELLED: "bg-slate-600/40 text-slate-300 border border-slate-500/50",
 };
 
+/** Helper: normalizeStatus. */
 function normalizeStatus(status) {
   const s = String(status ?? "")
     .trim()

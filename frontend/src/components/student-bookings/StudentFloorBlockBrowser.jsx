@@ -18,6 +18,7 @@ import {
   getStatusMeta,
 } from "../facilities/facilityBrowseCore.js";
 
+/** Helper: getBuildingAvailabilityLabel. */
 function getBuildingAvailabilityLabel(buildingName, spaceKind, apiResources) {
   const normalizedBuilding = normalizeBuildingName(buildingName);
   const count = apiResources.filter((resource) => {

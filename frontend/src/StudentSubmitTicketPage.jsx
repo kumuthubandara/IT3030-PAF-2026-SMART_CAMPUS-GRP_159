@@ -19,10 +19,12 @@ import {
 const CATEGORIES = ["Electrical", "Network", "Hardware", "Plumbing", "Other"];
 const LOCATIONS = ["Lab A", "Lab B", "Room 101", "Room 202", "Library", "Main Building"];
 
+/** Stable React key for an image preview slot derived from file metadata. */
 function previewKey(file) {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
+/** UI: StudentSubmitTicketPage. */
 export default function StudentSubmitTicketPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -66,6 +68,7 @@ export default function StudentSubmitTicketPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
+  /** addFiles. */
   function addFiles(fileList) {
     const files = Array.from(fileList ?? []);
     const { error: vErr, accepted } = validateImageFiles(files, previewSlots.length);
@@ -82,6 +85,7 @@ export default function StudentSubmitTicketPage() {
     });
   }
 
+  /** Revokes the blob URL for one preview and removes it from state. */
   function removePreview(idx) {
     setPreviewSlots((prev) => {
       const slot = prev[idx];
@@ -90,6 +94,7 @@ export default function StudentSubmitTicketPage() {
     });
   }
 
+  /** Runs field validators and returns a list of user-facing error strings (empty if valid). */
   function collectValidationErrors() {
     return [
       validateTicketTitle(title),
@@ -100,6 +105,7 @@ export default function StudentSubmitTicketPage() {
     ].filter(Boolean);
   }
 
+  /** Form submit: validates, creates ticket, uploads previews as attachments, adds optional comments, then navigates. */
   async function handleSubmit(e) {
     e.preventDefault();
     const msgs = collectValidationErrors();

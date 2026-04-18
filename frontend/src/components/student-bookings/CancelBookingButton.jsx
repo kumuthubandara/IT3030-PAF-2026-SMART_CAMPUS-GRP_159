@@ -2,11 +2,13 @@ import { useState } from "react";
 import { useToast } from "../ToastProvider.jsx";
 import { cancelBooking } from "../../services/bookingsApi.js";
 
+/** UI: CancelBookingButton. */
 export default function CancelBookingButton({ bookingId, user, onDone, disabled, className = "" }) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  /** Helper: handleClick. */
   async function handleClick() {
     setError("");
     setLoading(true);

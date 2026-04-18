@@ -4,6 +4,7 @@ import BookingForm from "../../../components/student-bookings/BookingForm.jsx";
 import { toLocalIsoDateTime } from "../../../components/student-bookings/bookingUtils.js";
 import { splitInstantToLocalDateAndTimes } from "../utils/bookingPayload.js";
 
+/** Inline SVG / icon fragment (CloseIcon). */
 function CloseIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -60,6 +61,7 @@ export default function EditBookingModal({
       return;
     }
     let cancelled = false;
+    /** Helper: load. */
     async function load() {
       setLoadError("");
       try {
@@ -89,6 +91,7 @@ export default function EditBookingModal({
     String(booking.endDateTime ?? ""),
   );
 
+  /** Helper: handleSubmit. */
   async function handleSubmit(fields) {
     setErrorMessage("");
     setSubmitState("loading");

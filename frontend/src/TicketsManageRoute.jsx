@@ -6,6 +6,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import TicketsPage from "./TicketsPage";
 
+/** UI: TicketsManageRoute. */
 export default function TicketsManageRoute() {
   const { user } = useAuth();
 

@@ -27,6 +27,7 @@ const topics = [
   },
 ];
 
+/** UI: MaintenancePage. */
 export default function MaintenancePage() {
   const { user } = useAuth();
   if (!user) {

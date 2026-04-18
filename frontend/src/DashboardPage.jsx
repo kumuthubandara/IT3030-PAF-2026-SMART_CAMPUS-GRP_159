@@ -27,12 +27,14 @@ const notifications = [
   "Reminder: 3 approvals waiting for Facilities.",
 ];
 
+/** priorityClass. */
 function priorityClass(priority) {
   if (priority === "High") return "text-red-300 bg-red-500/15";
   if (priority === "Medium") return "text-cyan-200 bg-cyan-400/10";
   return "text-slate-300 bg-slate-500/20";
 }
 
+/** UI: DashboardPage. */
 export default function DashboardPage() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100 antialiased">

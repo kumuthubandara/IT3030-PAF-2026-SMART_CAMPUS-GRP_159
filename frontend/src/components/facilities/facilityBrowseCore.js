@@ -65,6 +65,7 @@ export const newBuildingBlockTabs = [
   { label: "G block", detail: "West stack — seminar suites and writable-wall classrooms." },
 ];
 
+/** floorBlockPanelCopy. */
 export function floorBlockPanelCopy(floorLabel, blockLabel, buildingKey, spaceKind = "lecture") {
   const tabs = buildingKey === "new" ? newBuildingBlockTabs : mainBuildingBlockTabs;
   const tab = tabs.find((b) => b.label === blockLabel) ?? tabs[0];
@@ -79,14 +80,17 @@ export function floorBlockPanelCopy(floorLabel, blockLabel, buildingKey, spaceKi
   };
 }
 
+/** Helper: normalizeBuildingName. */
 export function normalizeBuildingName(value) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+/** extractFloorNumber. */
 export function extractFloorNumber(floorLabel) {
   return String(floorLabel ?? "").replace("Floor ", "").trim();
 }
 
+/** extractCodeFromResource. */
 export function extractCodeFromResource(resource) {
   const nameMatch = String(resource?.name ?? "").match(/([A-Z]\d{3,4})/);
   if (nameMatch) return nameMatch[1];
@@ -98,6 +102,7 @@ export function extractCodeFromResource(resource) {
   return null;
 }
 
+/** Helper: getResourceKind. */
 export function getResourceKind(type) {
   const normalized = String(type ?? "").trim().toLowerCase();
   if (normalized === "lecture hall" || normalized === "lecture_hall") return "lecture";
@@ -108,14 +113,17 @@ export function getResourceKind(type) {
   return "other";
 }
 
+/** Helper: formatAvailableCount. */
 export function formatAvailableCount(count) {
   return `${count} available`;
 }
 
+/** Helper: formatUnitCount. */
 export function formatUnitCount(count, unit) {
   return `${count} ${unit}`;
 }
 
+/** Helper: formatTimeValue. */
 export function formatTimeValue(value) {
   const text = String(value ?? "").trim();
   if (!text) return "";
@@ -126,11 +134,13 @@ export function formatTimeValue(value) {
   return `${hh}:${mm}`;
 }
 
+/** Helper: formatTimeRange. */
 export function formatTimeRange(resource) {
   if (!resource?.availableFrom || !resource?.availableTo) return null;
   return `${formatTimeValue(resource.availableFrom)} - ${formatTimeValue(resource.availableTo)}`;
 }
 
+/** Helper: canViewResourceForRole. */
 export function canViewResourceForRole(resource, role) {
   const normalizedRole = String(role ?? "").trim().toLowerCase();
   if (normalizedRole === "administrator" || normalizedRole === "admin") return true;
@@ -157,6 +167,7 @@ export function canViewResourceForRole(resource, role) {
   return true;
 }
 
+/** Helper: getCapacityDisplayValue. */
 export function getCapacityDisplayValue(resource) {
   if (resource?.capacity != null && !Number.isNaN(Number(resource.capacity))) {
     return String(resource.capacity);
@@ -175,6 +186,7 @@ export function getCapacityDisplayValue(resource) {
   return "N/A";
 }
 
+/** Helper: getResourceDetailRows. */
 export function getResourceDetailRows(resource) {
   const rows = [["Location", resource.location], ["Status", resource.status]];
 
@@ -197,6 +209,7 @@ export function getResourceDetailRows(resource) {
   return rows.filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "");
 }
 
+/** Helper: getComparableCapacityValue. */
 export function getComparableCapacityValue(resource) {
   if (resource?.capacity != null && !Number.isNaN(Number(resource.capacity))) {
     return Number(resource.capacity);
@@ -210,6 +223,7 @@ export function getComparableCapacityValue(resource) {
   return null;
 }
 
+/** Helper: getStatusMeta. */
 export function getStatusMeta(status) {
   const normalized = String(status ?? "").trim().toUpperCase();
   if (normalized === "ACTIVE" || normalized === "AVAILABLE") {

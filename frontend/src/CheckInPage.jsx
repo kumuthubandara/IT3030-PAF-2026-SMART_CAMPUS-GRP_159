@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchCheckInVerification } from "./services/checkInApi.js";
 
+/** VenuePhoto. */
 function VenuePhoto({ url, alt }) {
   const [failed, setFailed] = useState(false);
   if (!url || failed) return null;
@@ -20,6 +21,7 @@ function VenuePhoto({ url, alt }) {
   );
 }
 
+/** Helper: formatInstant. */
 function formatInstant(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -27,6 +29,7 @@ function formatInstant(iso) {
   return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
+/** UI: CheckInPage. */
 export default function CheckInPage() {
   const { bookingId } = useParams();
   const [data, setData] = useState(null);
@@ -35,6 +38,7 @@ export default function CheckInPage() {
 
   useEffect(() => {
     let cancelled = false;
+    /** run. */
     async function run() {
       setLoading(true);
       setError("");

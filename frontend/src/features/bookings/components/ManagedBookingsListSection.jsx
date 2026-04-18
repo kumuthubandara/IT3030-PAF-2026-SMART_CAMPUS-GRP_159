@@ -77,6 +77,7 @@ export default function ManagedBookingsListSection({
   /** @type {Record<string, unknown> | null} */
   const [qrPreviewRaw, setQrPreviewRaw] = useState(null);
 
+  /** Loads bookings for the signed-in user and applies audience/scope filters. */
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -111,6 +112,7 @@ export default function ManagedBookingsListSection({
 
   useEffect(() => {
     if (!qrPreviewRaw) return;
+    /** onKey. */
     function onKey(e) {
       if (e.key === "Escape") setQrPreviewRaw(null);
     }
@@ -122,6 +124,7 @@ export default function ManagedBookingsListSection({
     };
   }, [qrPreviewRaw]);
 
+  /** Helper: handleDelete. */
   async function handleDelete(raw) {
     if (!window.confirm("Delete this pending request?")) return;
     setBusyId(String(raw.id));
@@ -138,6 +141,7 @@ export default function ManagedBookingsListSection({
     }
   }
 
+  /** Helper: handleCancel. */
   async function handleCancel(raw) {
     if (!window.confirm("Cancel this approved booking?")) return;
     setBusyId(String(raw.id));

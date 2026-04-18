@@ -37,6 +37,7 @@ const responseTimes = [
 ];
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
 
+/** Helper: readContactMessages. */
 function readContactMessages() {
   try {
     const raw = sessionStorage.getItem(CONTACT_MESSAGES_KEY);
@@ -49,6 +50,7 @@ function readContactMessages() {
   }
 }
 
+/** Helper: validateForm. */
 function validateForm(values) {
   const errors = {};
 
@@ -96,6 +98,7 @@ function validateForm(values) {
   return errors;
 }
 
+/** UI: ContactUsPage. */
 export default function ContactUsPage() {
   const { user } = useAuth();
   const role = String(user?.role ?? "")
@@ -112,6 +115,7 @@ export default function ContactUsPage() {
     message: "",
   });
 
+  /** Helper: handleChange. */
   function handleChange(e) {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -123,6 +127,7 @@ export default function ContactUsPage() {
     });
   }
 
+  /** Helper: handleSubmit. */
   async function handleSubmit(e) {
     e.preventDefault();
     if (isBlockedRole) {

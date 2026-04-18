@@ -4,6 +4,7 @@ import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import TechnicianBookingsShell from "./features/bookings/components/technician/TechnicianBookingsShell.jsx";
 
+/** Helper: isTechnicianRole. */
 function isTechnicianRole(role) {
   const r = String(role ?? "")
     .trim()
@@ -11,6 +12,7 @@ function isTechnicianRole(role) {
   return r === "technician" || r === "tech";
 }
 
+/** UI: TechnicianBookingsPage. */
 export default function TechnicianBookingsPage() {
   const { user } = useAuth();
   const [params] = useSearchParams();

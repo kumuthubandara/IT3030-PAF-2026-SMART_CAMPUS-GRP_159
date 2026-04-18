@@ -30,6 +30,7 @@ export async function fetchAdminBookings(user, filters = {}) {
   return Array.isArray(data) ? data : [];
 }
 
+/** approveAdminBooking. */
 export async function approveAdminBooking(bookingId, user) {
   const res = await fetch(apiUrl(`/api/admin/bookings/${encodeURIComponent(bookingId)}/approve`), {
     method: "PATCH",
@@ -42,6 +43,7 @@ export async function approveAdminBooking(bookingId, user) {
   return data;
 }
 
+/** rejectAdminBooking. */
 export async function rejectAdminBooking(bookingId, reason, user) {
   const res = await fetch(apiUrl(`/api/admin/bookings/${encodeURIComponent(bookingId)}/reject`), {
     method: "PATCH",

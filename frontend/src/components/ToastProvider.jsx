@@ -2,10 +2,12 @@ import { createContext, useCallback, useContext, useState } from "react";
 
 const ToastContext = createContext(undefined);
 
+/** Returns a short unique id for a toast instance (timestamp + random suffix). */
 function nextId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** Single toast row with dismiss control and variant-based styling. */
 function ToastItem({ id, message, variant, onDismiss }) {
   const ring =
     variant === "success"
@@ -32,13 +34,16 @@ function ToastItem({ id, message, variant, onDismiss }) {
   );
 }
 
+/** UI: ToastProvider. */
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
+  /** Removes a toast by id from the in-memory list. */
   const removeToast = useCallback((id) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  /** Appends a toast and schedules auto-dismiss via removeToast. */
   const showToast = useCallback(
     (message, options = {}) => {
       const id = nextId();
@@ -68,6 +73,7 @@ export function ToastProvider({ children }) {
   );
 }
 
+/** React hook useToast. */
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) {

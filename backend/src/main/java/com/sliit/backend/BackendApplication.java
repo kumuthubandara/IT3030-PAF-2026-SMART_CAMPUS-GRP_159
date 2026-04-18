@@ -15,6 +15,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Spring Boot entry point for the Smart Campus API. Loads optional {@code .env} files, normalises
+ * MongoDB connection settings, then starts the web application context.
+ */
 @SpringBootApplication
 @EnableMongoRepositories(basePackages = {
         "com.sliit.backend.resource",
@@ -58,6 +62,9 @@ public class BackendApplication {
         return new ArrayList<>(ordered);
     }
 
+    /**
+     * Loads the first suitable {@code .env} file into JVM system properties (without overriding OS env).
+     */
     private static void loadDotEnvAsProperties() {
         try {
             Path envFile = null;
@@ -144,6 +151,7 @@ public class BackendApplication {
         }
     }
 
+    /** Returns the first non-null, non-blank string among the arguments, or {@code null}. */
     private static String firstNonBlank(String... values) {
         if (values == null) {
             return null;
@@ -156,6 +164,7 @@ public class BackendApplication {
         return null;
     }
 
+    /** Logs a reminder to stderr when the active Mongo URI still points at localhost. */
     private static void warnIfUsingLocalMongoFallback() {
         String uri = System.getProperty("spring.data.mongodb.uri");
         if (uri == null) {
