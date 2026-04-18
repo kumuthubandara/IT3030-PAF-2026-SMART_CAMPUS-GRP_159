@@ -47,7 +47,7 @@ const tiles = [
   },
   {
     id: "rooms",
-    title: "Lecture halls, computer labs, meeting rooms & library working spaces booking",
+    title: "Space booking",
     description: "Request or review spaces for lectures, labs, and assessments.",
     iconBg: "bg-cyan-500/20 text-cyan-400",
     icon: (

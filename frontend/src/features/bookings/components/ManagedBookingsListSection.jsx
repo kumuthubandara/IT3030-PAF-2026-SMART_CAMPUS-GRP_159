@@ -74,8 +74,8 @@ export default function ManagedBookingsListSection({
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [editRaw, setEditRaw] = useState(null);
-  /** @type {string | null} */
-  const [qrPreviewBookingId, setQrPreviewBookingId] = useState(null);
+  /** @type {Record<string, unknown> | null} */
+  const [qrPreviewRaw, setQrPreviewRaw] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,9 +110,9 @@ export default function ManagedBookingsListSection({
   }, [load, refreshKey]);
 
   useEffect(() => {
-    if (!qrPreviewBookingId) return;
+    if (!qrPreviewRaw) return;
     function onKey(e) {
-      if (e.key === "Escape") setQrPreviewBookingId(null);
+      if (e.key === "Escape") setQrPreviewRaw(null);
     }
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -120,7 +120,7 @@ export default function ManagedBookingsListSection({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [qrPreviewBookingId]);
+  }, [qrPreviewRaw]);
 
   async function handleDelete(raw) {
     if (!window.confirm("Delete this pending request?")) return;
@@ -234,7 +234,7 @@ export default function ManagedBookingsListSection({
                     <button
                       type="button"
                       disabled={disabled}
-                      onClick={() => setQrPreviewBookingId(row.id)}
+                      onClick={() => setQrPreviewRaw(raw)}
                       className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                         audience === "lecturer"
                           ? "border-violet-500/50 bg-violet-500/15 text-violet-200 hover:bg-violet-500/25"
@@ -281,12 +281,12 @@ export default function ManagedBookingsListSection({
         </ul>
       )}
 
-      {qrPreviewBookingId ? (
+      {qrPreviewRaw ? (
         <div
           className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm"
           role="presentation"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setQrPreviewBookingId(null);
+            if (e.target === e.currentTarget) setQrPreviewRaw(null);
           }}
         >
           <div
@@ -298,11 +298,11 @@ export default function ManagedBookingsListSection({
           >
             <div className="flex items-start justify-between gap-3 border-b border-slate-700/60 pb-4">
               <h2 id="check-in-qr-preview-title" className="font-heading text-lg font-semibold text-white">
-                Check-in QR
+                Booking confirmation QR
               </h2>
               <button
                 type="button"
-                onClick={() => setQrPreviewBookingId(null)}
+                onClick={() => setQrPreviewRaw(null)}
                 className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
                 aria-label="Close"
               >
@@ -312,10 +312,10 @@ export default function ManagedBookingsListSection({
               </button>
             </div>
             <div className="pt-5">
-              <ApprovedBookingCheckInQr bookingId={qrPreviewBookingId} audience={audience} />
+              <ApprovedBookingCheckInQr bookingRaw={qrPreviewRaw} user={user} audience={audience} />
               <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                Show this QR at check-in. Scanning opens a simple verification page with approved time, location, and
-                reference (no sign-in required for staff).
+                The code contains plain text only (no web link). Staff can scan with a phone camera to read the
+                confirmation on screen.
               </p>
             </div>
           </div>
