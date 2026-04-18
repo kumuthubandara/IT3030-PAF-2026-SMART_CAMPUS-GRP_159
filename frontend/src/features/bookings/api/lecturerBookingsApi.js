@@ -1,9 +1,11 @@
 import { apiUrl, buildAuthHeaders, parseJsonSafe, apiError } from "./http.js";
 
+/** requesterEmailForApi. */
 function requesterEmailForApi(user) {
   return String(user?.email ?? "").trim() || "";
 }
 
+/** requesterRoleForApi. */
 function requesterRoleForApi(user) {
   const r = String(user?.role ?? "")
     .trim()
@@ -24,6 +26,7 @@ export async function fetchBookableResources(user) {
   return list.filter(isBookableResourceRow).filter(isResourceActiveRow);
 }
 
+/** fetchResourceById. */
 export async function fetchResourceById(id, user) {
   const res = await fetch(apiUrl(`/api/resources/${encodeURIComponent(id)}`), {
     headers: buildAuthHeaders(user),
@@ -69,6 +72,7 @@ export async function createBooking(payload, user) {
   return data;
 }
 
+/** fetchMyBookings. */
 export async function fetchMyBookings(user) {
   const email = `?email=${encodeURIComponent(requesterEmailForApi(user))}`;
   const res = await fetch(apiUrl(`/api/bookings/my${email}`), { headers: buildAuthHeaders(user) });
@@ -79,6 +83,7 @@ export async function fetchMyBookings(user) {
   return Array.isArray(data) ? data : [];
 }
 
+/** updateBooking. */
 export async function updateBooking(bookingId, payload, user) {
   const emailQs = `?email=${encodeURIComponent(requesterEmailForApi(user))}`;
   const res = await fetch(apiUrl(`/api/bookings/${encodeURIComponent(bookingId)}${emailQs}`), {
@@ -99,6 +104,7 @@ export async function updateBooking(bookingId, payload, user) {
   return data;
 }
 
+/** deleteBooking. */
 export async function deleteBooking(bookingId, user) {
   const emailQs = `?email=${encodeURIComponent(requesterEmailForApi(user))}`;
   const res = await fetch(apiUrl(`/api/bookings/${encodeURIComponent(bookingId)}${emailQs}`), {
@@ -113,6 +119,7 @@ export async function deleteBooking(bookingId, user) {
   return data;
 }
 
+/** Helper: cancelApprovedBooking. */
 export async function cancelApprovedBooking(bookingId, user) {
   const emailQs = `?email=${encodeURIComponent(requesterEmailForApi(user))}`;
   const res = await fetch(apiUrl(`/api/bookings/${encodeURIComponent(bookingId)}/cancel${emailQs}`), {
@@ -126,6 +133,7 @@ export async function cancelApprovedBooking(bookingId, user) {
   return data;
 }
 
+/** Helper: isBookableResourceRow. */
 export function isBookableResourceRow(r) {
   const t = String(r?.type ?? "")
     .trim()
@@ -139,6 +147,7 @@ export function isBookableResourceRow(r) {
   );
 }
 
+/** Helper: isResourceActiveRow. */
 function isResourceActiveRow(r) {
   const s = String(r?.status ?? "")
     .trim()

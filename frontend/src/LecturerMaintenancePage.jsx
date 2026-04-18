@@ -4,12 +4,14 @@ import { useAuth } from "./AuthContext";
 import SiteFooter from "./SiteFooter";
 import { ticketsApi } from "./api/ticketsApi";
 
+/** priorityTag. */
 function priorityTag(priority) {
   if (priority === "HIGH") return { icon: "🔴", text: "HIGH", cls: "text-red-300" };
   if (priority === "MEDIUM") return { icon: "🟠", text: "MED", cls: "text-orange-300" };
   return { icon: "🟢", text: "LOW", cls: "text-emerald-300" };
 }
 
+/** UI: LecturerMaintenancePage. */
 export default function LecturerMaintenancePage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ export default function LecturerMaintenancePage() {
   useEffect(() => {
     if (!user || !isLecturer) return;
     let cancelled = false;
+    /** Helper: load. */
     async function load() {
       try {
         setLoading(true);
@@ -48,6 +51,7 @@ export default function LecturerMaintenancePage() {
     };
   }, [user, isLecturer, search, status, priority]);
 
+  /** Aggregated ticket counts for lecturer maintenance summary cards. */
   const summary = useMemo(() => {
     const high = tickets.filter((t) => t.priority === "HIGH" && !["CLOSED", "REJECTED"].includes(t.status)).length;
     const pending = tickets.filter((t) => ["OPEN", "IN_PROGRESS"].includes(t.status)).length;

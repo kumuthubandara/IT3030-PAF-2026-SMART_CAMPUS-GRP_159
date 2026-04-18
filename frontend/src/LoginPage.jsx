@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteFooter from "./SiteFooter";
 
+/** UI: LoginPage. */
 export default function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function LoginPage() {
     }
   }, [user, navigate, searchParams]);
 
+  /** Helper: handleSubmit. */
   function handleSubmit(e) {
     e.preventDefault();
     const displayName = name.trim() || email.split("@")[0] || "User";

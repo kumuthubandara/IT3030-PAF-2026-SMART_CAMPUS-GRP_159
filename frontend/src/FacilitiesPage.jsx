@@ -111,6 +111,7 @@ const technicianFacilities = lecturerFacilities.filter(
     "Maintenance and support equipment for technical operations, repairs, and campus service tasks.",
 }));
 
+/** Helper: getTypeFilterOptionsForRole. */
 function getTypeFilterOptionsForRole(role) {
   const normalizedRole = String(role ?? "").trim().toLowerCase();
   if (normalizedRole === "student") {
@@ -140,6 +141,7 @@ function getTypeFilterOptionsForRole(role) {
   ];
 }
 
+/** Helper: getFacilityKindFromCardName. */
 function getFacilityKindFromCardName(name) {
   const normalized = String(name ?? "").trim().toLowerCase();
   if (normalized === "lecture halls") return "lecture";
@@ -150,6 +152,7 @@ function getFacilityKindFromCardName(name) {
   return "other";
 }
 
+/** Helper: getRoleNotification. */
 function getRoleNotification(role) {
   const normalizedRole = String(role ?? "").trim().toLowerCase();
   if (normalizedRole === "student") {
@@ -186,6 +189,7 @@ function getRoleNotification(role) {
   };
 }
 
+/** UI: FacilitiesPage. */
 export default function FacilitiesPage() {
   const { user } = useAuth();
   if (!user) {
@@ -236,6 +240,7 @@ export default function FacilitiesPage() {
   useEffect(() => {
     let active = true;
 
+    /** Helper: loadResources. */
     async function loadResources() {
       try {
         const res = await fetch(apiUrl("/api/resources"));
@@ -377,10 +382,12 @@ export default function FacilitiesPage() {
     "library workspaces": formatAvailableCount(resourceCounts.library),
   };
 
+  /** Helper: getFacilityAvailabilityLabel. */
   function getFacilityAvailabilityLabel(facilityName, fallback) {
     return facilityAvailabilityByName[String(facilityName ?? "").trim().toLowerCase()] ?? fallback;
   }
 
+  /** Helper: getFacilityPopupKey. */
   function getFacilityPopupKey(facilityName) {
     const normalized = String(facilityName ?? "").trim().toLowerCase();
     if (normalized === "lecture halls") return "lecture-halls";
@@ -391,6 +398,7 @@ export default function FacilitiesPage() {
     return null;
   }
 
+  /** openResourcePreview. */
   function openResourcePreview(resource) {
     const kind = getResourceKind(resource.type);
     if (kind === "meeting") {
@@ -421,6 +429,7 @@ export default function FacilitiesPage() {
     }
   }
 
+  /** Helper: getBuildingAvailabilityLabel. */
   function getBuildingAvailabilityLabel(buildingName, spaceKind) {
     const normalizedBuilding = normalizeBuildingName(buildingName);
     const count = apiResources.filter((resource) => {

@@ -1,3 +1,4 @@
+/** UI: AdminBookingFilters. */
 export default function AdminBookingFilters({
   draft,
   onDraftChange,

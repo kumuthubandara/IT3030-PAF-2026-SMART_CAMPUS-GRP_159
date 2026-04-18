@@ -4,6 +4,7 @@
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 
+/** toBackendUser. */
 function toBackendUser(role) {
   const normalized = String(role ?? "").trim().toLowerCase();
   if (normalized === "administrator" || normalized === "admin") {
@@ -18,6 +19,7 @@ function toBackendUser(role) {
   return { username: "student1", password: "1234" };
 }
 
+/** backendUsernameForUser. */
 export function backendUsernameForUser(user) {
   return toBackendUser(user?.role).username;
 }
@@ -29,6 +31,7 @@ export function authHeader(user) {
   return `Basic ${token}`;
 }
 
+/** request. */
 async function request(path, { method = "GET", body, user } = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     method,

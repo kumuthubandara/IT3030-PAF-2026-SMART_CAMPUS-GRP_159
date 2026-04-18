@@ -12,10 +12,12 @@ import { buildBookingConfirmationQrPlainText } from "../../utils/bookingQrPlainT
  */
 export default function ApprovedBookingCheckInQr({ bookingRaw, user, audience = "student" }) {
   const { showToast } = useToast();
+  /** Plain-text payload shown inside the QR code (not a URL). */
   const qrValue = useMemo(() => buildBookingConfirmationQrPlainText(bookingRaw, user), [bookingRaw, user]);
   const ring = audience === "lecturer" ? "border-violet-500/35" : "border-cyan-500/35";
   const [copyState, setCopyState] = useState("idle");
 
+  /** Copies the QR plain-text payload to the clipboard and surfaces toast feedback. */
   const copyText = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(qrValue);

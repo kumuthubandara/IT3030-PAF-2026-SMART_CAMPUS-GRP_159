@@ -76,6 +76,7 @@ const tiles = [
   },
 ];
 
+/** Inline SVG / icon fragment (CloseIcon). */
 function CloseIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -84,12 +85,14 @@ function CloseIcon() {
   );
 }
 
+/** Helper: formatDateTime. */
 function formatDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Unknown time";
   return d.toLocaleString();
 }
 
+/** UI: StudentDashboardPage. */
 export default function StudentDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -97,6 +100,7 @@ export default function StudentDashboardPage() {
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
 
+  /** Helper: loadRecentActivities. */
   async function loadRecentActivities() {
     try {
       const res = await fetch(recentActivitiesListUrl(10, user));
@@ -114,6 +118,7 @@ export default function StudentDashboardPage() {
 
   useEffect(() => {
     if (!modal) return;
+    /** onKey. */
     function onKey(e) {
       if (e.key === "Escape") setModal(null);
     }

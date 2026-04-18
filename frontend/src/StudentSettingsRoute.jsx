@@ -2,6 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import StudentSettingsPage from "./StudentSettingsPage";
 
+/** UI: StudentSettingsRoute. */
 export default function StudentSettingsRoute() {
   const { user } = useAuth();
 

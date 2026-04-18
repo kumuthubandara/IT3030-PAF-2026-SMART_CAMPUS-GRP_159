@@ -21,6 +21,7 @@ import LecturerSubmitTicketPage from "./LecturerSubmitTicketPage";
 import LecturerMaintenancePage from "./LecturerMaintenancePage";
 import TicketsManageRoute from "./TicketsManageRoute";
 
+/** App. */
 export default function App() {
   return (
     <BrowserRouter>

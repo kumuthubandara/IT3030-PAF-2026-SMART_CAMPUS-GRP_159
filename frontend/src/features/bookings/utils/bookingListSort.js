@@ -1,7 +1,9 @@
+/** rawStartIso. */
 function rawStartIso(raw) {
   return raw?.startDateTime ?? raw?.start ?? raw?.startTime ?? raw?.start_at ?? "";
 }
 
+/** rawStatusUpper. */
 function rawStatusUpper(raw) {
   return String(raw?.status ?? "PENDING")
     .trim()

@@ -1,6 +1,11 @@
+/**
+ * Demo settings UI for student/technician dashboards: notification toggles (not wired to an API yet),
+ * language/time zone selects, and disabled security actions until backend auth flows exist.
+ */
 export default function StudentSettingsForm() {
   return (
     <div className="space-y-8">
+      {/* Notification preferences — checkboxes are uncontrolled (defaultChecked); persist when API exists */}
       <div>
         <h3 className="text-sm font-semibold text-cyan-300">Notifications</h3>
         <ul className="mt-4 space-y-4">
@@ -54,6 +59,7 @@ export default function StudentSettingsForm() {
         </ul>
       </div>
 
+      {/* Locale preferences — selects use defaultValue only; hook to profile API when ready */}
       <div>
         <h3 className="text-sm font-semibold text-cyan-300">Preferences</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -93,6 +99,7 @@ export default function StudentSettingsForm() {
         </div>
       </div>
 
+      {/* Placeholder security actions — disabled until identity provider / password API is integrated */}
       <div>
         <h3 className="text-sm font-semibold text-cyan-300">Security</h3>
         <p className="mt-2 text-sm text-slate-400">

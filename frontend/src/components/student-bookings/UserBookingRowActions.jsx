@@ -19,6 +19,7 @@ export default function UserBookingRowActions({ bookingId, status, bookingStartI
     .trim()
     .toUpperCase();
 
+  /** Helper: handleWithdraw. */
   async function handleWithdraw() {
     if (!window.confirm("Withdraw this pending request? It will be removed.")) return;
     setError("");
@@ -36,6 +37,7 @@ export default function UserBookingRowActions({ bookingId, status, bookingStartI
     }
   }
 
+  /** Helper: handleCancelApproved. */
   async function handleCancelApproved() {
     if (!window.confirm("Cancel this approved booking?")) return;
     setError("");

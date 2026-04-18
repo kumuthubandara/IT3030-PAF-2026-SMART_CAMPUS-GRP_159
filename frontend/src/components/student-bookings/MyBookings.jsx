@@ -4,6 +4,7 @@ import { compareMyBookingsPendingFirstThenStart } from "../../features/bookings/
 import BookingStatusBadge from "./BookingStatusBadge.jsx";
 import UserBookingRowActions from "./UserBookingRowActions.jsx";
 
+/** firstDefined. */
 function firstDefined(obj, keys) {
   for (const k of keys) {
     const v = obj?.[k];
@@ -12,6 +13,7 @@ function firstDefined(obj, keys) {
   return undefined;
 }
 
+/** Helper: formatDateLabel. */
 function formatDateLabel(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -24,6 +26,7 @@ function formatDateLabel(iso) {
   });
 }
 
+/** Helper: formatTimeRange. */
 function formatTimeRange(startIso, endIso) {
   if (!startIso || !endIso) return "—";
   const s = new Date(startIso);
@@ -33,6 +36,7 @@ function formatTimeRange(startIso, endIso) {
   return `${s.toLocaleTimeString(undefined, opts)} – ${e.toLocaleTimeString(undefined, opts)}`;
 }
 
+/** Helper: normalizeBookingRow. */
 export function normalizeBookingRow(raw) {
   const id = String(firstDefined(raw, ["id", "_id"]) ?? "");
   const start =
@@ -62,11 +66,13 @@ export function normalizeBookingRow(raw) {
   };
 }
 
+/** Lists the signed-in user's bookings in table or compact layout. */
 export default function MyBookings({ user, compact }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /** Loads the current user's bookings and normalizes rows for the table. */
   const load = useCallback(async () => {
     setLoading(true);
     setError("");

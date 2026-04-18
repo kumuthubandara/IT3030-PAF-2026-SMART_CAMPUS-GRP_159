@@ -17,10 +17,12 @@ import {
 const CATEGORIES = ["Electrical", "Network", "Hardware", "Plumbing", "Audio/Visual", "Other"];
 const LOCATIONS = ["Lecture Hall 1", "Lecture Hall 2", "Lecture Hall 3", "Lab A", "Lab B", "Main Building"];
 
+/** previewKey. */
 function previewKey(file) {
   return `${file.name}-${file.size}-${file.lastModified}`;
 }
 
+/** UI: LecturerSubmitTicketPage. */
 export default function LecturerSubmitTicketPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -56,6 +58,7 @@ export default function LecturerSubmitTicketPage() {
     return <Navigate to="/dashboard" replace />;
   }
 
+  /** addFiles. */
   function addFiles(fileList) {
     const files = Array.from(fileList ?? []);
     const { error: vErr, accepted } = validateImageFiles(files, previewSlots.length);
@@ -72,6 +75,7 @@ export default function LecturerSubmitTicketPage() {
     });
   }
 
+  /** removePreview. */
   function removePreview(idx) {
     setPreviewSlots((prev) => {
       const slot = prev[idx];
@@ -80,6 +84,7 @@ export default function LecturerSubmitTicketPage() {
     });
   }
 
+  /** collectValidationErrors. */
   function collectValidationErrors() {
     return [
       validateTicketTitle(title),
@@ -88,6 +93,7 @@ export default function LecturerSubmitTicketPage() {
     ].filter(Boolean);
   }
 
+  /** Helper: handleSubmit. */
   async function handleSubmit(e) {
     e.preventDefault();
     const msgs = collectValidationErrors();

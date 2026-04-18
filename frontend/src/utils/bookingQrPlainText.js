@@ -1,5 +1,6 @@
 import { normalizeBookingRow } from "../components/student-bookings/MyBookings.jsx";
 
+/** customerNameFromRawAndUser. */
 function customerNameFromRawAndUser(raw, user) {
   const fromRaw = String(raw?.requesterName ?? raw?.requester_name ?? "").trim();
   if (fromRaw) return fromRaw;

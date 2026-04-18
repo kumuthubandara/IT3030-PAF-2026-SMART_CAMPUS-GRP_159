@@ -1,0 +1,13 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.maven.enabled": true,
+  "java.compile.nullAnalysis.mode": "automatic",
+  "files.watcherExclude": {
+    "**/backend/target/**": true,
+    "**/frontend/node_modules/**": true
+  },
+  "search.exclude": {
+    "**/backend/target": true,
+    "**/frontend/node_modules": true
+  }
+}

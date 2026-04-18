@@ -97,24 +97,28 @@ const assignedTickets = [
   { id: "TK-4809", location: "Lab 3", title: "Broken door lock", status: "RESOLVED", priority: "Low" },
 ];
 
+/** priorityClass. */
 function priorityClass(priority) {
   if (priority === "High") return "text-red-300 bg-red-500/15";
   if (priority === "Medium") return "text-amber-200 bg-amber-500/15";
   return "text-slate-300 bg-slate-500/20";
 }
 
+/** statusClass. */
 function statusClass(status) {
   if (status === "OPEN") return "text-cyan-200 bg-cyan-500/15";
   if (status === "IN_PROGRESS") return "text-amber-200 bg-amber-500/15";
   return "text-emerald-200 bg-emerald-500/15";
 }
 
+/** Helper: formatDateTime. */
 function formatDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Unknown time";
   return d.toLocaleString();
 }
 
+/** Inline SVG / icon fragment (CloseIcon). */
 function CloseIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -123,6 +127,7 @@ function CloseIcon() {
   );
 }
 
+/** UI: TechnicianDashboardPage. */
 export default function TechnicianDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -130,6 +135,7 @@ export default function TechnicianDashboardPage() {
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
 
+  /** Helper: loadRecentActivities. */
   async function loadRecentActivities() {
     try {
       const res = await fetch(recentActivitiesListUrl(10, user));
@@ -147,6 +153,7 @@ export default function TechnicianDashboardPage() {
 
   useEffect(() => {
     if (!modal) return;
+    /** onKey. */
     function onKey(e) {
       if (e.key === "Escape") setModal(null);
     }

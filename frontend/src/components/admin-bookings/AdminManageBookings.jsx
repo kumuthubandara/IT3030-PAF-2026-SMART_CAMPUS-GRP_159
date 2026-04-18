@@ -12,10 +12,12 @@ import RejectBookingModal from "./RejectBookingModal.jsx";
 
 const EMPTY_FILTERS = { status: "", resourceType: "", date: "", requester: "", location: "" };
 
+/** UI: equipmentInitialFilters. */
 function equipmentInitialFilters() {
   return { ...EMPTY_FILTERS, resourceType: "equipment" };
 }
 
+/** LoadingBlock. */
 function LoadingBlock({ equipmentOnly }) {
   const ring = equipmentOnly
     ? "border-violet-500/30 border-t-violet-400"
@@ -62,6 +64,7 @@ export default function AdminManageBookings({ user }) {
     }
   }, [queueScope]);
 
+  /** Fetches admin booking rows from the API and applies client-side sort. */
   const loadList = useCallback(async () => {
     setLoadState("loading");
     setListError("");
@@ -89,6 +92,7 @@ export default function AdminManageBookings({ user }) {
     void loadList();
   }, [loadList]);
 
+  /** Helper: handleApprove. */
   async function handleApprove(booking) {
     setActingId(booking.id);
     try {
@@ -102,6 +106,7 @@ export default function AdminManageBookings({ user }) {
     }
   }
 
+  /** Helper: handleRejectConfirm. */
   async function handleRejectConfirm(reason) {
     if (!rejectTarget) return;
     setRejectSubmitting(true);
@@ -117,10 +122,12 @@ export default function AdminManageBookings({ user }) {
     }
   }
 
+  /** Helper: handleApplyFilters. */
   function handleApplyFilters() {
     setActiveFilters(equipmentOnly ? { ...draftFilters, resourceType: "equipment" } : { ...draftFilters });
   }
 
+  /** Helper: handleResetFilters. */
   function handleResetFilters() {
     const base = equipmentOnly ? equipmentInitialFilters() : EMPTY_FILTERS;
     setDraftFilters(base);

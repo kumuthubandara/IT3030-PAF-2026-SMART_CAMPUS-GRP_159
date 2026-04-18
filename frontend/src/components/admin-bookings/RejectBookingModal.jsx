@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 
+/** UI: RejectBookingModal. */
 export default function RejectBookingModal({ open, booking, onClose, onConfirm, isSubmitting }) {
   const labelId = useId();
   const [reason, setReason] = useState("");
@@ -14,6 +15,7 @@ export default function RejectBookingModal({ open, booking, onClose, onConfirm, 
 
   useEffect(() => {
     if (!open) return;
+    /** Event handler `onKey`. */
     const onKey = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation();
@@ -26,6 +28,7 @@ export default function RejectBookingModal({ open, booking, onClose, onConfirm, 
 
   if (!open || !booking) return null;
 
+  /** Helper: handleSubmit. */
   function handleSubmit(e) {
     e.preventDefault();
     const trimmed = reason.trim();

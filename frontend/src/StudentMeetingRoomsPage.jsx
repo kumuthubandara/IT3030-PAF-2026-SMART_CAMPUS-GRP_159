@@ -4,6 +4,7 @@ import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentBookingsShell from "./features/bookings/components/student/StudentBookingsShell.jsx";
 
+/** UI: StudentMeetingRoomsPage. */
 export default function StudentMeetingRoomsPage() {
   const { user } = useAuth();
   const role = String(user?.role ?? "")

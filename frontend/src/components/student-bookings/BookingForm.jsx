@@ -9,6 +9,7 @@ import {
   validateBookingFields,
 } from "./bookingUtils.js";
 
+/** defaultExpectedAttendeesValue. */
 function defaultExpectedAttendeesValue(resource, bookerRole) {
   const bounds = getExpectedAttendeeBoundsForBooking(resource, bookerRole ?? "student");
   if (isMeetingRoomType(resource?.type)) {
@@ -21,6 +22,7 @@ function defaultExpectedAttendeesValue(resource, bookerRole) {
   return "4";
 }
 
+/** UI: BookingForm. */
 export default function BookingForm({
   resource,
   bookerRole,
@@ -67,6 +69,7 @@ export default function BookingForm({
     }
   }, [resource?.id, initialSnapshot, initialPurpose, initialExpectedAttendees, roleForBooking]);
 
+  /** Helper: handleSubmit. */
   function handleSubmit(e) {
     e.preventDefault();
     setLocalError("");

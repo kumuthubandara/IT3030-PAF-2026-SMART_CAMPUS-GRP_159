@@ -35,16 +35,19 @@ function allowedNextStatuses(status, isAdmin) {
   return [];
 }
 
+/** ticketsHubPath. */
 function ticketsHubPath() {
   return "/tickets";
 }
 
+/** ticketsHubBackLabel. */
 function ticketsHubBackLabel(role) {
   const r = String(role ?? "").trim().toLowerCase();
   if (r === "student" || r === "lecturer") return "← Back to my tickets";
   return "← Back to ticket queue";
 }
 
+/** UI: TicketDetailsPage. */
 export default function TicketDetailsPage() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -74,6 +77,7 @@ export default function TicketDetailsPage() {
   const [statusDraft, setStatusDraft] = useState("OPEN");
   const [priorityDraft, setPriorityDraft] = useState("MEDIUM");
 
+  /** Helper: handleLocalImage. */
   function handleLocalImage(file) {
     if (!file || !file.type.startsWith("image/")) {
       setError("Please drop/select a valid image file.");
@@ -85,6 +89,7 @@ export default function TicketDetailsPage() {
     setError("");
   }
 
+  /** Helper: loadTicket. */
   async function loadTicket() {
     if (!user || !id) return;
     try {
@@ -109,6 +114,7 @@ export default function TicketDetailsPage() {
     loadTicket();
   }, [id, user]);
 
+  /** Helper: handleStatusApply. */
   async function handleStatusApply() {
     try {
       setError("");
@@ -122,6 +128,7 @@ export default function TicketDetailsPage() {
     }
   }
 
+  /** Helper: handlePrioritySave. */
   async function handlePrioritySave() {
     try {
       setError("");
@@ -132,6 +139,7 @@ export default function TicketDetailsPage() {
     }
   }
 
+  /** Helper: handleAssign. */
   async function handleAssign(e) {
     e.preventDefault();
     try {
@@ -143,6 +151,7 @@ export default function TicketDetailsPage() {
     }
   }
 
+  /** Helper: handleComment. */
   async function handleComment(e) {
     e.preventDefault();
     try {
@@ -155,6 +164,7 @@ export default function TicketDetailsPage() {
     }
   }
 
+  /** Helper: handleDeleteComment. */
   async function handleDeleteComment(commentId) {
     try {
       setError("");
@@ -165,6 +175,7 @@ export default function TicketDetailsPage() {
     }
   }
 
+  /** Helper: handleAttachment. */
   async function handleAttachment(e) {
     e.preventDefault();
     try {
@@ -182,6 +193,7 @@ export default function TicketDetailsPage() {
     }
   }
 
+  /** Helper: handleRemoveSelectedImage. */
   function handleRemoveSelectedImage() {
     setImageUrl("");
     setImagePreview("");
