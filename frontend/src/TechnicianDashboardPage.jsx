@@ -172,22 +172,22 @@ export default function TechnicianDashboardPage() {
           </div>
           <div className="flex shrink-0 flex-wrap gap-3">
             <Link
-              to="/facilities"
-              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
-            >
-              Facilities
-            </Link>
-            <Link
-              to="/maintenance"
-              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
-            >
-              Maintenance
-            </Link>
-            <Link
               to="/"
               className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
             >
               Home
+            </Link>
+            <Link
+              to="/contact"
+              className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
+            >
+              Contact
+            </Link>
+            <Link
+              to="/technician/bookings"
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400/60 hover:text-white"
+            >
+              Book resources
             </Link>
           </div>
         </div>
@@ -357,13 +357,16 @@ export default function TechnicianDashboardPage() {
               {modal === "my-bookings" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Book kit on{" "}
+                    Use{" "}
+                    <Link to="/technician/bookings" className="font-medium text-cyan-400 hover:text-cyan-300">
+                      Book resources
+                    </Link>{" "}
+                    on your dashboard for the same booking grid as lecturers (equipment only). Browse read-only on{" "}
                     <Link to="/facilities" className="font-medium text-cyan-400 hover:text-cyan-300">
                       Facilities
-                    </Link>{" "}
-                    (Equipment catalogue). Requests are{" "}
-                    <strong className="text-amber-200/90">PENDING</strong> until an administrator approves or rejects
-                    them—the same workflow as other campus bookings.
+                    </Link>
+                    . Requests are <strong className="text-amber-200/90">PENDING</strong> until an administrator
+                    approves or rejects them.
                   </p>
                   <ManagedBookingsListSection
                     embedded
@@ -375,7 +378,7 @@ export default function TechnicianDashboardPage() {
                     cancelBooking={(id, u) => bookingsApi.cancelBooking(id, u, {})}
                     updateBooking={bookingsApi.updateBooking}
                     fetchResourceById={bookingsApi.fetchResourceById}
-                    embeddedEmptyHint="No equipment bookings yet. Go to Facilities → Equipment → Book Now on an active item."
+                    embeddedEmptyHint="No equipment bookings yet. Open Book resources on the dashboard to request kit from the equipment catalogue."
                   />
                 </div>
               )}

@@ -122,6 +122,7 @@ export default function BookingModal({ open, onClose, resource, user, onSuccess 
               ) : null}
               <BookingForm
                 resource={resource}
+                bookerRole={user?.role}
                 submitState={submitState}
                 onSubmit={handleSubmit}
                 onCancel={onClose}

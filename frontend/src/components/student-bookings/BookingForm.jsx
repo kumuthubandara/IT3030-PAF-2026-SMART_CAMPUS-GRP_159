@@ -1,13 +1,29 @@
 import { useEffect, useState } from "react";
 import {
-  getResourceCapacityMax,
+  getExpectedAttendeeBoundsForBooking,
+  isMeetingRoomType,
+  PURPOSE_MAX_LENGTH,
+  PURPOSE_MIN_LENGTH,
   resourceToRoomSummary,
   todayDateString,
   validateBookingFields,
 } from "./bookingUtils.js";
 
+function defaultExpectedAttendeesValue(resource, bookerRole) {
+  const bounds = getExpectedAttendeeBoundsForBooking(resource, bookerRole ?? "student");
+  if (isMeetingRoomType(resource?.type)) {
+    return String(bounds.min);
+  }
+  const cap = bounds.max;
+  if (cap != null) {
+    return String(Math.min(4, Math.max(bounds.min, cap)));
+  }
+  return "4";
+}
+
 export default function BookingForm({
   resource,
+  bookerRole,
   onSubmit,
   submitState,
   onCancel,
@@ -15,21 +31,21 @@ export default function BookingForm({
   initialPurpose,
   initialExpectedAttendees,
 }) {
+  const roleForBooking = String(bookerRole ?? "student").trim().toLowerCase() || "student";
   const summary = resourceToRoomSummary(resource);
-  const capacityMax = getResourceCapacityMax(resource);
+  const attendeeBounds = getExpectedAttendeeBoundsForBooking(resource, roleForBooking);
 
   const [bookingDate, setBookingDate] = useState(todayDateString());
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
   const [purpose, setPurpose] = useState("");
-  const [expectedAttendees, setExpectedAttendees] = useState(
-    capacityMax != null ? String(Math.min(4, capacityMax)) : "4",
+  const [expectedAttendees, setExpectedAttendees] = useState(() =>
+    defaultExpectedAttendeesValue(resource, roleForBooking),
   );
   const [localError, setLocalError] = useState("");
 
   useEffect(() => {
     setLocalError("");
-    const max = getResourceCapacityMax(resource);
     if (initialSnapshot?.bookingDate) {
       setBookingDate(initialSnapshot.bookingDate);
       setStartTime(initialSnapshot.startTime || "09:00");
@@ -47,17 +63,17 @@ export default function BookingForm({
     if (initialExpectedAttendees !== undefined && initialExpectedAttendees !== null) {
       setExpectedAttendees(String(initialExpectedAttendees));
     } else {
-      setExpectedAttendees(max != null ? String(Math.min(4, max)) : "4");
+      setExpectedAttendees(defaultExpectedAttendeesValue(resource, roleForBooking));
     }
-  }, [resource?.id, initialSnapshot, initialPurpose, initialExpectedAttendees]);
+  }, [resource?.id, initialSnapshot, initialPurpose, initialExpectedAttendees, roleForBooking]);
 
   function handleSubmit(e) {
     e.preventDefault();
     setLocalError("");
     const v = validateBookingFields(
       { bookingDate, startTime, endTime, purpose, expectedAttendees },
-      capacityMax,
       resource,
+      roleForBooking,
     );
     if (!v.ok) {
       setLocalError(v.message);
@@ -73,6 +89,9 @@ export default function BookingForm({
   }
 
   const busy = submitState === "loading";
+  const purposeTrimLen = purpose.trim().length;
+  const purposeTooShort = purpose.length > 0 && purposeTrimLen < PURPOSE_MIN_LENGTH;
+  const purposeNearLimit = purpose.length > PURPOSE_MAX_LENGTH - 40;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -130,29 +149,56 @@ export default function BookingForm({
       </div>
 
       <label className="block text-sm">
-        <span className="text-slate-400">Purpose</span>
+        <span className="text-slate-400">
+          Purpose <span className="text-amber-200/90">*</span>
+          <span className="ml-2 text-xs font-normal text-slate-500">
+            (min {PURPOSE_MIN_LENGTH} · max {PURPOSE_MAX_LENGTH} characters after trimming spaces)
+          </span>
+        </span>
         <textarea
           required
-          minLength={3}
-          maxLength={500}
+          minLength={PURPOSE_MIN_LENGTH}
+          maxLength={PURPOSE_MAX_LENGTH}
           rows={3}
           value={purpose}
           onChange={(e) => setPurpose(e.target.value)}
           disabled={busy}
-          placeholder="e.g. group project meeting"
-          className="mt-1 w-full rounded-lg border border-slate-600/80 bg-slate-950/80 px-3 py-2 text-slate-100 outline-none ring-cyan-500/30 focus:ring-2"
+          placeholder={`At least ${PURPOSE_MIN_LENGTH} characters, e.g. group project meeting`}
+          aria-describedby="booking-purpose-hint"
+          className={`mt-1 w-full rounded-lg border bg-slate-950/80 px-3 py-2 text-slate-100 outline-none ring-cyan-500/30 focus:ring-2 ${
+            purposeTooShort ? "border-amber-500/50" : "border-slate-600/80"
+          }`}
         />
+        <p id="booking-purpose-hint" className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className={purposeTooShort ? "text-amber-200/90" : "text-slate-500"}>
+            {purposeTrimLen === 0
+              ? "Required — describe why you need the space."
+              : purposeTooShort
+                ? `${PURPOSE_MIN_LENGTH - purposeTrimLen} more character(s) needed (leading/trailing spaces do not count).`
+                : purposeTrimLen >= PURPOSE_MIN_LENGTH
+                  ? "Meets minimum length (trimmed)."
+                  : ""}
+          </span>
+          <span className={purposeNearLimit ? "text-amber-200/80" : "text-slate-500"}>
+            {purpose.length} / {PURPOSE_MAX_LENGTH}
+          </span>
+        </p>
       </label>
 
       <label className="block text-sm">
         <span className="text-slate-400">Expected attendees</span>
-        {capacityMax != null ? (
-          <span className="ml-2 text-xs text-slate-500">(max {capacityMax})</span>
-        ) : null}
+        {attendeeBounds.max != null ? (
+          <span className="ml-2 text-xs text-slate-500">
+            (min {attendeeBounds.min} · max {attendeeBounds.max}
+            {isMeetingRoomType(resource?.type) ? " · meeting room policy" : ""})
+          </span>
+        ) : (
+          <span className="ml-2 text-xs text-slate-500">(min {attendeeBounds.min})</span>
+        )}
         <input
           type="number"
-          min={1}
-          max={capacityMax ?? undefined}
+          min={attendeeBounds.min}
+          max={attendeeBounds.max ?? undefined}
           required
           value={expectedAttendees}
           onChange={(e) => setExpectedAttendees(e.target.value)}

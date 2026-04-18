@@ -174,6 +174,7 @@ export default function EditBookingModal({
               <BookingForm
                 key={String(booking.id)}
                 resource={resource}
+                bookerRole={audience === "lecturer" ? "lecturer" : audience === "technician" ? "technician" : "student"}
                 submitState={submitState}
                 initialSnapshot={initialSnapshot}
                 initialPurpose={String(booking.purpose ?? "")}

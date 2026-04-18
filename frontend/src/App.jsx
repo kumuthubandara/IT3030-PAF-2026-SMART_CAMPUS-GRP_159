@@ -11,6 +11,7 @@ import SignUpPage from "./SignUpPage";
 import StudentSettingsRoute from "./StudentSettingsRoute";
 import StudentMeetingRoomsPage from "./StudentMeetingRoomsPage";
 import LecturerBookingsPage from "./LecturerBookingsPage";
+import TechnicianBookingsPage from "./TechnicianBookingsPage";
 import CheckInPage from "./CheckInPage";
 import TicketDetailsPage from "./TicketDetailsPage";
 import StudentEmergencyDashboardPage from "./StudentEmergencyDashboardPage";
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/settings" element={<StudentSettingsRoute />} />
         <Route path="/student/meeting-rooms" element={<StudentMeetingRoomsPage />} />
         <Route path="/lecturer/bookings" element={<LecturerBookingsPage />} />
+        <Route path="/technician/bookings" element={<TechnicianBookingsPage />} />
         <Route path="/check-in/:bookingId" element={<CheckInPage />} />
         <Route path="/tickets" element={<TicketEntryRoute />} />
         <Route path="/tickets/manage" element={<TicketsManageRoute />} />

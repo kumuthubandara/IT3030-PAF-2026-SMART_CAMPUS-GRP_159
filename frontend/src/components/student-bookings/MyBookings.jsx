@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchMyBookings } from "../../services/bookingsApi.js";
+import { compareMyBookingsPendingFirstThenStart } from "../../features/bookings/utils/bookingListSort.js";
 import BookingStatusBadge from "./BookingStatusBadge.jsx";
 import UserBookingRowActions from "./UserBookingRowActions.jsx";
 
@@ -71,7 +72,9 @@ export default function MyBookings({ user, compact }) {
     setError("");
     try {
       const data = await fetchMyBookings(user);
-      setRows(Array.isArray(data) ? data.map(normalizeBookingRow) : []);
+      const mapped = Array.isArray(data) ? data.map(normalizeBookingRow) : [];
+      mapped.sort(compareMyBookingsPendingFirstThenStart);
+      setRows(mapped);
     } catch (e) {
       setError(e?.message || "Failed to load bookings");
       setRows([]);

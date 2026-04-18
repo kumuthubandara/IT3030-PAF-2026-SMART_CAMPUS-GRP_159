@@ -5,6 +5,7 @@ import {
   fetchAdminBookings,
   rejectAdminBooking,
 } from "../../features/bookings/api/adminBookingsApi.js";
+import { sortRawBookingsPendingFirstThenStart } from "../../features/bookings/utils/bookingListSort.js";
 import AdminBookingFilters from "./AdminBookingFilters.jsx";
 import PendingBookingCard from "./PendingBookingCard.jsx";
 import RejectBookingModal from "./RejectBookingModal.jsx";
@@ -74,7 +75,8 @@ export default function AdminManageBookings({ user }) {
         location: activeFilters.location || undefined,
         requesterRole: studentsMode ? "student" : undefined,
       });
-      setBookings(rows);
+      const list = Array.isArray(rows) ? rows : [];
+      setBookings(sortRawBookingsPendingFirstThenStart(list));
       setLoadState("ready");
     } catch (e) {
       setListError(e.message || "Could not load bookings.");

@@ -244,11 +244,13 @@ export default function StudentDashboardPage() {
             <span className="text-xs text-slate-500">Auto refreshes every 10s</span>
           </div>
           <p className="mt-1 text-sm text-slate-400">
-            View your latest bookings, ticket updates, and actions.
+            Shows <strong className="text-slate-300">your approved bookings</strong> only — pending requests and other
+            users&apos; activity are hidden here. Use <strong className="text-slate-300">My Booking</strong> for the full
+            list.
           </p>
           {recentActivities.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-slate-600/60 bg-slate-900/50 p-6 text-sm text-slate-500">
-              No recent activity yet.
+              No approved bookings to show yet. When staff approve a request you submitted, it will appear here.
             </div>
           ) : (
             <ul className="mt-4 space-y-3 rounded-2xl border border-cyan-500/15 bg-slate-900/70 p-4">
