@@ -16,6 +16,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
+/**
+ * Core domain service for Smart Campus incident tickets: create/list/export, status workflow,
+ * technician assignment, threaded comments, image evidence URLs, audit activities, and
+ * in-app notifications. Business rules align with IT3030 Module&nbsp;C (workflow + ownership).
+ */
 @Service
 public class TicketService {
 
@@ -40,6 +45,7 @@ public class TicketService {
         this.sequenceService = sequenceService;
     }
 
+    /** Creates a new ticket in {@link TicketStatus#OPEN} owned by the authenticated reporter. */
     public Ticket createTicket(CreateTicketRequest request, Authentication auth) {
         Ticket ticket = new Ticket();
         ticket.setId(sequenceService.next(SEQ_TICKETS));
@@ -81,6 +87,7 @@ public class TicketService {
                 .toList();
     }
 
+    /** Admin-only CSV export of the same rows {@link #listTickets} would return for that role. */
     public String exportTicketsCsv(Authentication auth, TicketStatus status, TicketPriority priority, String q) {
         if (!hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("Only admin can export ticket reports.");
@@ -108,6 +115,7 @@ public class TicketService {
         return csv.toString();
     }
 
+    /** Loads one ticket plus audit trail when the caller is admin, owner, or assigned technician. */
     public Ticket getTicket(Long id, Authentication auth) {
         Ticket ticket = findTicket(id);
         if (hasRole(auth, "ROLE_ADMIN") || ticket.getCreatedUser().equals(auth.getName())
@@ -146,6 +154,7 @@ public class TicketService {
         return saved;
     }
 
+    /** Admin-only change of {@link TicketPriority}. */
     public Ticket updatePriority(Long id, TicketPriority priority, Authentication auth) {
         if (!hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("Only admin can change ticket priority.");
@@ -159,6 +168,7 @@ public class TicketService {
         return saved;
     }
 
+    /** Admin-only assignment of {@code technicianUsername} (Spring Security principal name). */
     public Ticket assignTechnician(Long id, String technicianUsername, Authentication auth) {
         if (!hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("Only admin can assign technicians.");
@@ -172,6 +182,7 @@ public class TicketService {
         return saved;
     }
 
+    /** Appends a comment; notifies other participants when applicable. */
     public TicketComment addComment(Long ticketId, CommentRequest request, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
         LocalDateTime now = LocalDateTime.now();
@@ -189,6 +200,7 @@ public class TicketService {
         return comment;
     }
 
+    /** Updates a comment message; only the original author may edit. */
     public TicketComment editComment(Long ticketId, Long commentId, CommentRequest request, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
         TicketComment comment = ticket.getComments().stream()
@@ -205,6 +217,7 @@ public class TicketService {
         return comment;
     }
 
+    /** Deletes a comment if the caller is the author or an administrator. */
     public void deleteComment(Long ticketId, Long commentId, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
         TicketComment comment = ticket.getComments().stream()
@@ -220,6 +233,9 @@ public class TicketService {
         createActivity(ticket, auth.getName(), "Comment deleted");
     }
 
+    /**
+     * Adds up to three validated image evidence URLs; only ticket owner or admin, not on terminal tickets.
+     */
     public List<TicketAttachment> addAttachments(Long ticketId, AttachmentUploadRequest request, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
         if (!hasRole(auth, "ROLE_ADMIN") && !ticket.getCreatedUser().equals(auth.getName())) {
@@ -249,20 +265,24 @@ public class TicketService {
         return saved;
     }
 
+    /** Notification inbox for the authenticated user (newest first). */
     public List<TicketNotification> getMyNotifications(Authentication auth) {
         return notificationRepository.findByRecipientOrderByCreatedAtDesc(auth.getName());
     }
 
+    /** Activity log for a ticket (same visibility rules as {@link #getTicket}). */
     public List<TicketActivity> listTicketActivities(Long ticketId, Authentication auth) {
         getTicket(ticketId, auth);
         return activityRepository.findByTicketIdOrderByCreatedAtDesc(ticketId);
     }
 
+    /** Loads aggregate or throws {@link NotFoundException}; ensures comment/attachment lists are non-null. */
     private Ticket findTicket(Long id) {
         Ticket t = ticketRepository.findById(id).orElseThrow(() -> new NotFoundException("Ticket not found."));
         return normalizeLists(t);
     }
 
+    /** Avoids null embedded lists when reading older Mongo documents. */
     private Ticket normalizeLists(Ticket t) {
         if (t.getComments() == null) {
             t.setComments(new ArrayList<>());
@@ -347,10 +367,12 @@ public class TicketService {
         return url;
     }
 
+    /** True if the security principal has the given Spring authority (e.g. {@code ROLE_ADMIN}). */
     private boolean hasRole(Authentication auth, String role) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(role));
     }
 
+    /** Notifies ticket owner and assigned technician when someone else acts on the ticket. */
     private void createNotification(Ticket ticket, String actor, String message) {
         LocalDateTime now = LocalDateTime.now();
         if (!ticket.getCreatedUser().equals(actor)) {
@@ -375,6 +397,7 @@ public class TicketService {
         }
     }
 
+    /** Persists an audit row for the ticket timeline. */
     private void createActivity(Ticket ticket, String actor, String action) {
         TicketActivity activity = new TicketActivity();
         activity.setId(sequenceService.next(SEQ_ACTIVITIES));
@@ -385,6 +408,7 @@ public class TicketService {
         activityRepository.save(activity);
     }
 
+    /** RFC-style CSV field escaping for export. */
     private String csvEscape(String value) {
         if (value == null) {
             return "";

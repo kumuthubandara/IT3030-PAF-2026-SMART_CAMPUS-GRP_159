@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.LocalDateTime;
 
+/** Per-user notification for ticket events (status, assignment, new comments). */
 @Document(collection = "ticket_notifications")
 public class TicketNotification {
 

@@ -3,7 +3,7 @@ package com.sliit.backend.ticket;
 import java.time.LocalDateTime;
 
 /**
- * Embedded inside a {@link Ticket} document (not a separate collection).
+ * Embedded image evidence inside a {@link Ticket} document (URL validated on upload; max three per ticket).
  */
 public class TicketAttachment {
 

@@ -1,5 +1,7 @@
 /**
- * Single ticket view: comments, attachments, and staff-only assign/status controls.
+ * Single ticket view: comments, attachments (max three), activity feed, and staff-only
+ * assign/status controls. Status dropdown options mirror the backend workflow
+ * (OPEN → IN_PROGRESS → RESOLVED → CLOSED; admin may REJECT from OPEN/IN_PROGRESS with reason).
  */
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
@@ -10,7 +12,12 @@ import { backendUsernameForUser, ticketsApi } from "./api/ticketsApi";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
 
-/** Matches backend TicketService workflow (OPEN → IN_PROGRESS → RESOLVED → CLOSED; admin may REJECT from OPEN/IN_PROGRESS). */
+/**
+ * Next statuses the UI may offer; must stay in sync with {@code TicketService.validateTransition}.
+ * @param {string} status Current ticket status from API
+ * @param {boolean} isAdmin Whether the signed-in user is an administrator
+ * @returns {string[]}
+ */
 function allowedNextStatuses(status, isAdmin) {
   const s = String(status ?? "").toUpperCase();
   if (s === "CLOSED" || s === "REJECTED") return [];

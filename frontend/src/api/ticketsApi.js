@@ -1,5 +1,6 @@
 /**
- * Thin fetch wrapper for the Spring ticket module. Maps UI roles to demo Basic Auth users.
+ * Thin fetch wrapper for the Spring ticket module (`/api/tickets`, `/api/notifications`).
+ * Maps UI roles to demo Basic Auth users; all mutating calls send `Authorization: Basic …`.
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 

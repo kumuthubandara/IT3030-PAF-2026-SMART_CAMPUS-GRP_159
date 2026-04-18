@@ -9,6 +9,11 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Root aggregate for a maintenance ticket stored in MongoDB. Holds embedded comments and
+ * attachment metadata; {@link TicketActivity} rows live in a separate collection and are
+ * joined when loading a single ticket for authorised viewers.
+ */
 @Document(collection = "tickets")
 public class Ticket {
 
