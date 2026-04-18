@@ -72,6 +72,7 @@ function normalizeDefaultTab(audience, tab) {
   return t;
 }
 
+/** UI: ResourceBookingsShell. */
 export default function ResourceBookingsShell({ audience, user, defaultTabId = "all" }) {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +113,7 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
             fetchResourceById: lecturerBookingsApi.fetchResourceById,
           };
 
+  /** Loads bookable resources from the API and filters by dashboard audience. */
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -151,6 +153,7 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
     }
   }, [defaultTabId, loading, resources, audience]);
 
+  /** Tab labels that still have at least one bookable resource in the loaded list. */
   const visibleTabs = useMemo(() => {
     const counts = new Map();
     for (const r of resources) {
@@ -163,6 +166,7 @@ export default function ResourceBookingsShell({ audience, user, defaultTabId = "
     });
   }, [resources, bookingTabs]);
 
+  /** Resources filtered by the active category tab. */
   const filtered = useMemo(() => {
     if (tabId === "all") return resources;
     return resources.filter((r) => categoryIdForResource(r) === tabId);

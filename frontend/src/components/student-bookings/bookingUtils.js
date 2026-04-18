@@ -59,6 +59,7 @@ export function getResourceCapacityMax(resource) {
   return null;
 }
 
+/** Helper: formatTimeRange. */
 export function formatTimeRange(resource) {
   if (!resource?.availableFrom && !resource?.availableTo) return "";
   const from = resource.availableFrom ? String(resource.availableFrom).slice(0, 5) : "";
@@ -114,6 +115,7 @@ export function toLocalIsoDateTime(bookingDate, time) {
   return `${bookingDate}T${time}:00`;
 }
 
+/** pad. */
 function pad(n) {
   return String(n).padStart(2, "0");
 }

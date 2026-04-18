@@ -1,5 +1,6 @@
 import { apiUrl } from "../../../apiBase.js";
 
+/** Helper: buildAuthHeaders. */
 export function buildAuthHeaders(user) {
   const headers = { Accept: "application/json" };
   const token = user?.token ?? user?.accessToken;
@@ -9,6 +10,7 @@ export function buildAuthHeaders(user) {
   return headers;
 }
 
+/** Helper: parseJsonSafe. */
 export async function parseJsonSafe(res) {
   const text = await res.text();
   if (!text) return null;
@@ -19,6 +21,7 @@ export async function parseJsonSafe(res) {
   }
 }
 
+/** apiError. */
 export function apiError(res, data, fallback) {
   const err = new Error(data?.message || data?.error || fallback);
   err.status = res.status;

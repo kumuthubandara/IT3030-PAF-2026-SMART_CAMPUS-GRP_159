@@ -5,6 +5,7 @@ import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import { ticketsApi } from "./api/ticketsApi";
 
+/** UI: NotificationsPage. */
 export default function NotificationsPage() {
   const { user } = useAuth();
   const { hash } = useLocation();
@@ -13,6 +14,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    /** Helper: loadNotifications. */
     async function loadNotifications() {
       if (!user) return;
       try {

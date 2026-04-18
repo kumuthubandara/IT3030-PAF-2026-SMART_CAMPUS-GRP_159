@@ -4,6 +4,7 @@ import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
 
+/** UI: StudentSettingsPage. */
 export default function StudentSettingsPage() {
   const { user } = useAuth();
 

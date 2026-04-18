@@ -4,6 +4,7 @@ import { createBookingRequest } from "../../services/bookingsApi.js";
 import { toLocalIsoDateTime } from "./bookingUtils.js";
 import BookingForm from "./BookingForm.jsx";
 
+/** Inline SVG / icon fragment (CloseIcon). */
 function CloseIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -34,6 +35,7 @@ export default function BookingModal({ open, onClose, resource, user, onSuccess 
 
   useEffect(() => {
     if (!open) return;
+    /** onKey. */
     function onKey(e) {
       if (e.key === "Escape" && submitState !== "loading") onClose?.();
     }
@@ -43,6 +45,7 @@ export default function BookingModal({ open, onClose, resource, user, onSuccess 
 
   if (!open || !resource) return null;
 
+  /** Helper: handleSubmit. */
   async function handleSubmit(fields) {
     setErrorMessage("");
     setSubmitState("loading");

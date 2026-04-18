@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 
+/** UI: SmartCampusHomePage. */
 export default function SmartCampusHomePage() {
   const { hash } = useLocation();
 

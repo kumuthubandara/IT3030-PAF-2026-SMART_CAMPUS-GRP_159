@@ -4,6 +4,7 @@ import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import LecturerBookingsShell from "./features/bookings/components/lecturer/LecturerBookingsShell.jsx";
 
+/** Helper: isLecturerRole. */
 function isLecturerRole(role) {
   const r = String(role ?? "")
     .trim()
@@ -11,6 +12,7 @@ function isLecturerRole(role) {
   return r === "lecturer";
 }
 
+/** UI: LecturerBookingsPage. */
 export default function LecturerBookingsPage() {
   const { user } = useAuth();
   const [params] = useSearchParams();

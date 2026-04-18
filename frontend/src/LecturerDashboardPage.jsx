@@ -112,6 +112,7 @@ const tiles = [
   },
 ];
 
+/** shortWeekdayFromIso. */
 function shortWeekdayFromIso(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -133,6 +134,7 @@ function formatTeachingWeekRangeLabel() {
   return `${monday.toLocaleDateString(undefined, opts)} - ${sunday.toLocaleDateString(undefined, opts)}`;
 }
 
+/** Helper: formatAccountCreated. */
 function formatAccountCreated(iso) {
   if (!iso || typeof iso !== "string") return "—";
   const d = new Date(iso);
@@ -144,12 +146,14 @@ function formatAccountCreated(iso) {
   });
 }
 
+/** Helper: formatDateTime. */
 function formatDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Unknown time";
   return d.toLocaleString();
 }
 
+/** Inline SVG / icon fragment (CloseIcon). */
 function CloseIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -158,12 +162,14 @@ function CloseIcon() {
   );
 }
 
+/** scheduleListIdentityKey. */
 function scheduleListIdentityKey(user) {
   if (!user) return "";
   const email = String(user.email ?? "").trim().toLowerCase();
   return email || "_no_email_";
 }
 
+/** UI: LecturerDashboardPage. */
 export default function LecturerDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -175,6 +181,7 @@ export default function LecturerDashboardPage() {
   const lastScheduleListIdentityRef = useRef("");
   const scheduleListIdentity = scheduleListIdentityKey(user);
 
+  /** Helper: loadRecentActivities. */
   async function loadRecentActivities() {
     try {
       const res = await fetch(recentActivitiesListUrl(10, user));
@@ -192,6 +199,7 @@ export default function LecturerDashboardPage() {
 
   useEffect(() => {
     if (!modal) return;
+    /** onKey. */
     function onKey(e) {
       if (e.key === "Escape") setModal(null);
     }
@@ -216,6 +224,7 @@ export default function LecturerDashboardPage() {
       return;
     }
     let cancelled = false;
+    /** Helper: loadFacilitySchedule. */
     async function loadFacilitySchedule() {
       if (lastScheduleListIdentityRef.current !== scheduleListIdentity) {
         lastScheduleListIdentityRef.current = scheduleListIdentity;

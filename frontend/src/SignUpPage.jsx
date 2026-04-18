@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteFooter from "./SiteFooter";
 
+/** UI: SignUpPage. */
 export default function SignUpPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function SignUpPage() {
     }
   }, [user, navigate]);
 
+  /** Helper: handleSubmit. */
   function handleSubmit(e) {
     e.preventDefault();
     setError("");

@@ -1,5 +1,6 @@
 import { resourceToRoomSummary } from "./bookingUtils.js";
 
+/** UI: statusBadge. */
 function statusBadge(isBookable) {
   if (isBookable) {
     return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/40";
@@ -7,6 +8,7 @@ function statusBadge(isBookable) {
   return "bg-red-500/15 text-red-300 border border-red-500/40";
 }
 
+/** UI: MeetingRoomCard. */
 export default function MeetingRoomCard({ resource, onBookNow, isBookable }) {
   const summary = resourceToRoomSummary(resource);
   const bookable = isBookable !== false;

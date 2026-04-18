@@ -15,6 +15,7 @@ const footerLinks = [
 const linkClass =
   "text-sm text-slate-400 transition hover:text-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950";
 
+/** SiteFooter. */
 export default function SiteFooter() {
   return (
     <footer className="border-t border-cyan-500/10 bg-slate-950">

@@ -11,6 +11,7 @@ import { recentActivitiesListUrl } from "./services/recentActivitiesApi.js";
 
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
 
+/** Helper: readContactMessages. */
 function readContactMessages() {
   try {
     const raw = sessionStorage.getItem(CONTACT_MESSAGES_KEY);
@@ -23,6 +24,7 @@ function readContactMessages() {
   }
 }
 
+/** Helper: formatDateTime. */
 function formatDateTime(value) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "Unknown time";
@@ -135,6 +137,7 @@ const tiles = [
   },
 ];
 
+/** Inline SVG / icon fragment (CloseIcon). */
 function CloseIcon() {
   return (
     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -147,32 +150,39 @@ const STRUCTURED_LOCATION_TYPES = new Set(["Lecture Hall", "Computer Lab"]);
 const MAIN_BUILDING_FLOORS = ["3", "4", "5", "6"];
 const NEW_BUILDING_FLOORS = Array.from({ length: 11 }, (_, i) => String(i + 3)); // 3-13
 
+/** Helper: isStructuredLocationType. */
 function isStructuredLocationType(type) {
   return STRUCTURED_LOCATION_TYPES.has(type);
 }
 
+/** Helper: getCapacityLimit. */
 function getCapacityLimit(type) {
   if (type === "Lecture Hall") return { min: 1, max: 500 };
   if (type === "Computer Lab") return { min: 1, max: 60 };
   return null;
 }
 
+/** needsAudienceSelection. */
 function needsAudienceSelection(type) {
   return type === "Library Workspace" || type === "Meeting Room" || isEquipmentType(type);
 }
 
+/** Helper: isLibraryWorkspaceType. */
 function isLibraryWorkspaceType(type) {
   return type === "Library Workspace";
 }
 
+/** Helper: isMeetingRoomType. */
 function isMeetingRoomType(type) {
   return type === "Meeting Room";
 }
 
+/** Helper: isEquipmentType. */
 function isEquipmentType(type) {
   return type === "Equipment" || type === "Equipments";
 }
 
+/** Helper: getAudienceOptionsForType. */
 function getAudienceOptionsForType(type) {
   if (isEquipmentType(type)) {
     return [
@@ -186,6 +196,7 @@ function getAudienceOptionsForType(type) {
   ];
 }
 
+/** Helper: getDuplicateMessageForType. */
 function getDuplicateMessageForType(type) {
   if (type === "Lecture Hall") {
     return "This lecture hall already exists at this building, floor, and block";
@@ -250,12 +261,14 @@ function getFacilityDuplicateKey(resource) {
   return "";
 }
 
+/** Helper: getMeetingRoomCapacityRange. */
 function getMeetingRoomCapacityRange(audience) {
   if (audience === "Student") return { min: 5, max: 8, helper: "Allowed range: 5–8" };
   if (audience === "Lecturer") return { min: 1, max: 8, helper: "Allowed range: 1–8" };
   return null;
 }
 
+/** Helper: validateMeetingRoomCapacity. */
 function validateMeetingRoomCapacity(form) {
   const minValue = String(form.minCapacity ?? "").trim();
   const maxValue = String(form.maxCapacity ?? "").trim();
@@ -300,6 +313,7 @@ function validateMeetingRoomCapacity(form) {
   return null;
 }
 
+/** Helper: getAutoLocationForType. */
 function getAutoLocationForType(type) {
   if (type === "Meeting Room" || type === "Library Workspace") {
     return "New Building - Floor 1 - Library";
@@ -313,6 +327,7 @@ function getAutoLocationForType(type) {
 const CAMPUS_OPEN_MINUTES = 8 * 60; // 08:00
 const CAMPUS_CLOSE_MINUTES = 20 * 60; // 20:00
 
+/** timeToMinutes. */
 function timeToMinutes(value) {
   if (!value || !/^\d{2}:\d{2}$/.test(value)) return null;
   const [hh, mm] = value.split(":").map(Number);
@@ -320,14 +335,17 @@ function timeToMinutes(value) {
   return hh * 60 + mm;
 }
 
+/** Helper: normalizeText. */
 function normalizeText(value) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+/** timesOverlap. */
 function timesOverlap(startA, endA, startB, endB) {
   return startA < endB && startB < endA;
 }
 
+/** Helper: getAvailabilityValidationErrors. */
 function getAvailabilityValidationErrors(availableFrom, availableTo, status) {
   const errors = {};
   if (status !== "ACTIVE") return errors;
@@ -370,6 +388,7 @@ function getAvailabilityValidationErrors(availableFrom, availableTo, status) {
   return errors;
 }
 
+/** Helper: validateFacilityForm. */
 function validateFacilityForm(form) {
   const fieldErrors = {};
   const structuredLocation = isStructuredLocationType(form.type);
@@ -455,6 +474,7 @@ function validateFacilityForm(form) {
   return { fieldErrors };
 }
 
+/** Helper: buildRoomCode. */
 function buildRoomCode(block, floor, hallNumber) {
   const safeBlock = String(block ?? "").trim().charAt(0).toUpperCase();
   const safeFloor = String(floor ?? "").trim();
@@ -463,6 +483,7 @@ function buildRoomCode(block, floor, hallNumber) {
   return `${safeBlock}${safeFloor}${String(number).padStart(2, "0")}`;
 }
 
+/** Helper: buildResourceName. */
 function buildResourceName(
   type,
   block,
@@ -490,6 +511,7 @@ function buildResourceName(
   return `${type} - ${location}`;
 }
 
+/** UI: AdminDashboardPage. */
 export default function AdminDashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -528,6 +550,7 @@ export default function AdminDashboardPage() {
     imageUrl: "",
   });
 
+  /** Helper: loadContactMessages. */
   async function loadContactMessages() {
     try {
       const res = await fetch(apiUrl("/api/contact-messages"));
@@ -556,6 +579,7 @@ export default function AdminDashboardPage() {
     setContactMessages(readContactMessages());
   }
 
+  /** Helper: loadRecentActivities. */
   async function loadRecentActivities() {
     try {
       const res = await fetch(recentActivitiesListUrl(20, user), {
@@ -572,6 +596,7 @@ export default function AdminDashboardPage() {
     }
   }
 
+  /** Helper: loadFacilities. */
   async function loadFacilities() {
     try {
       setIsFacilitiesLoading(true);
@@ -602,6 +627,7 @@ export default function AdminDashboardPage() {
       void loadFacilities();
     }
 
+    /** onKey. */
     function onKey(e) {
       if (e.key === "Escape") setModal(null);
     }
@@ -630,6 +656,7 @@ export default function AdminDashboardPage() {
   const activeTile = tiles.find((t) => t.id === modal);
   const selectedMessage = contactMessages.find((msg) => msg.id === selectedMessageId) || null;
 
+  /** Helper: handleFacilityInputChange. */
   function handleFacilityInputChange(e) {
     const { name, value } = e.target;
     setFacilityFieldErrors({});
@@ -727,6 +754,7 @@ export default function AdminDashboardPage() {
     });
   }
 
+  /** Helper: handleFacilitySubmit. */
   async function handleFacilitySubmit(e) {
     e.preventDefault();
     const { fieldErrors } = validateFacilityForm(facilityForm);
@@ -858,6 +886,7 @@ export default function AdminDashboardPage() {
     }
   }
 
+  /** Helper: handleFacilityClear. */
   function handleFacilityClear() {
     setFacilityForm({
       type: "",
@@ -882,6 +911,7 @@ export default function AdminDashboardPage() {
     setEditingFacilityId(null);
   }
 
+  /** Helper: handleFacilityEdit. */
   function handleFacilityEdit(facility) {
     setEditingFacilityId(facility.id);
     const isStructured = isStructuredLocationType(facility.type);
@@ -919,6 +949,7 @@ export default function AdminDashboardPage() {
     setFacilityFieldErrors({});
   }
 
+  /** Helper: handleFacilityDelete. */
   async function handleFacilityDelete(id) {
     try {
       const res = await fetch(apiUrl(`/api/resources/${id}`), {

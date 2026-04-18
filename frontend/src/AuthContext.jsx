@@ -8,6 +8,7 @@ import {
 
 const STORAGE_KEY = "smart-campus-auth";
 
+/** Reads persisted auth payload from sessionStorage; returns null if missing or invalid JSON. */
 function readStoredUser() {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
@@ -21,10 +22,12 @@ function readStoredUser() {
 
 const AuthContext = createContext(null);
 
+/** Provides auth state (`user`) and `login` / `logout` to the React tree. */
 export function AuthProvider({ children }) {
   /** Sync read on first paint so /dashboard sees the correct role immediately (no flash to login / wrong dashboard). */
   const [user, setUser] = useState(() => readStoredUser());
 
+  /** Persists the signed-in user to session storage and updates React state. */
   const login = useCallback((payload) => {
     const prev = readStoredUser();
     const email = String(payload.email ?? "").trim().toLowerCase();
@@ -40,11 +43,13 @@ export function AuthProvider({ children }) {
     setUser(full);
   }, []);
 
+  /** Clears session storage and sets the current user to null. */
   const logout = useCallback(() => {
     sessionStorage.removeItem(STORAGE_KEY);
     setUser(null);
   }, []);
 
+  /** Memoized context value `{ user, login, logout }` for Provider consumers. */
   const value = useMemo(
     () => ({ user, login, logout }),
     [user, login, logout]
@@ -55,6 +60,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+/** Returns `{ user, login, logout }` from context; throws if there is no provider. */
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) {

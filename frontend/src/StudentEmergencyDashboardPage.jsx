@@ -4,12 +4,14 @@ import { useAuth } from "./AuthContext";
 import SiteFooter from "./SiteFooter";
 import { ticketsApi } from "./api/ticketsApi";
 
+/** priorityLabel. */
 function priorityLabel(p) {
   if (p === "HIGH") return { text: "HIGH", dot: "🔴", cls: "text-red-300" };
   if (p === "MEDIUM") return { text: "MED", dot: "🟠", cls: "text-orange-300" };
   return { text: "LOW", dot: "🟢", cls: "text-emerald-300" };
 }
 
+/** Helper: formatLastUpdate. */
 function formatLastUpdate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -30,6 +32,7 @@ function formatLastUpdate(iso) {
   return d.toLocaleDateString();
 }
 
+/** UI: StudentEmergencyDashboardPage. */
 export default function StudentEmergencyDashboardPage() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -45,6 +48,7 @@ export default function StudentEmergencyDashboardPage() {
   useEffect(() => {
     if (!user || !isStudent) return;
     let cancelled = false;
+    /** Helper: load. */
     async function load() {
       try {
         setLoading(true);
@@ -66,6 +70,7 @@ export default function StudentEmergencyDashboardPage() {
     };
   }, [user, isStudent, statusFilter, search]);
 
+  /** Aggregated ticket counts (pending, resolved, high-priority open) for summary UI. */
   const summary = useMemo(() => {
     const pending = tickets.filter((t) =>
       ["OPEN", "IN_PROGRESS"].includes(t.status)

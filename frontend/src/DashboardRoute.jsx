@@ -6,6 +6,7 @@ import AdminDashboardPage from "./AdminDashboardPage";
 import TechnicianDashboardPage from "./TechnicianDashboardPage";
 import DashboardPage from "./DashboardPage";
 
+/** UI: DashboardRoute. */
 export default function DashboardRoute() {
   const { user } = useAuth();
 
