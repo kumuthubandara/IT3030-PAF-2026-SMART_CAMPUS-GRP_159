@@ -159,7 +159,13 @@ export default function MyBookings({ user, compact }) {
               </div>
             ) : null}
           </dl>
-          <UserBookingRowActions bookingId={row.id} status={row.status} user={user} onDone={() => void load()} />
+          <UserBookingRowActions
+            bookingId={row.id}
+            status={row.status}
+            bookingStartIso={row.rawStart}
+            user={user}
+            onDone={() => void load()}
+          />
         </li>
       ))}
       <li className="list-none">

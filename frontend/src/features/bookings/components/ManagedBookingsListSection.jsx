@@ -3,7 +3,7 @@ import { useToast } from "../../../components/ToastProvider.jsx";
 import { normalizeBookingRow } from "../../../components/student-bookings/MyBookings.jsx";
 import BookingStatusBadge from "../../../components/student-bookings/BookingStatusBadge.jsx";
 import {
-  canCancelApprovedBooking,
+  canCancelApprovedBookingNow,
   canDeleteBooking,
   canEditBooking,
 } from "../utils/bookingActionPolicy.js";
@@ -264,7 +264,7 @@ export default function ManagedBookingsListSection({
                       Delete
                     </button>
                   ) : null}
-                  {canCancelApprovedBooking(row.status) ? (
+                  {canCancelApprovedBookingNow(row.status, row.rawStart) ? (
                     <button
                       type="button"
                       disabled={disabled}

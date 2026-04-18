@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useToast } from "../ToastProvider.jsx";
 import { cancelBooking, deleteMyBooking } from "../../services/bookingsApi.js";
+import { canCancelApprovedBookingNow } from "../../features/bookings/utils/bookingActionPolicy.js";
 
 /**
  * @param {object} props
  * @param {string} props.bookingId
  * @param {string} props.status
+ * @param {string|undefined} [props.bookingStartIso] — ISO start time for APPROVED cancel window
  * @param {Record<string, unknown>} props.user
  * @param {() => void} [props.onDone]
  */
-export default function UserBookingRowActions({ bookingId, status, user, onDone }) {
+export default function UserBookingRowActions({ bookingId, status, bookingStartIso, user, onDone }) {
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -68,6 +70,9 @@ export default function UserBookingRowActions({ bookingId, status, user, onDone 
   }
 
   if (s === "APPROVED") {
+    if (!canCancelApprovedBookingNow(status, bookingStartIso)) {
+      return null;
+    }
     return (
       <div className="mt-3">
         <button
