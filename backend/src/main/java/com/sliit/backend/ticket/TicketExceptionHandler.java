@@ -15,6 +15,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Centralised JSON error responses for the ticket REST API (validation, domain errors, Mongo).
+ */
 @RestControllerAdvice
 public class TicketExceptionHandler {
 

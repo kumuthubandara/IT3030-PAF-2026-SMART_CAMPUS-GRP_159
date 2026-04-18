@@ -25,9 +25,20 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * REST facade for {@code /api/tickets}: CRUD-style operations, comments, attachments, status,
+ * priority, assignment, activity feed, and CSV export. Secured with method-level roles.
+ */
 @RestController
 @RequestMapping("/api/tickets")
-@CrossOrigin(origins = {"http://localhost:5173", "http://127.0.0.1:5173"})
+@CrossOrigin(origins = {
+        "http://localhost:5173", "http://127.0.0.1:5173",
+        "http://localhost:5174", "http://127.0.0.1:5174",
+        "http://localhost:5175", "http://127.0.0.1:5175",
+        "http://localhost:5176", "http://127.0.0.1:5176",
+        "http://localhost:5177", "http://127.0.0.1:5177",
+        "http://localhost:5178", "http://127.0.0.1:5178"
+})
 public class TicketController {
 
     private final TicketService service;
@@ -110,8 +121,9 @@ public class TicketController {
     @PostMapping("/{id}/attachments")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<List<TicketAttachment>> addAttachments(@PathVariable Long id,
-                                                                 @Valid @RequestBody AttachmentUploadRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.addAttachments(id, request));
+                                                                 @Valid @RequestBody AttachmentUploadRequest request,
+                                                                 Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addAttachments(id, request, authentication));
     }
 
     @GetMapping("/{id}/activities")

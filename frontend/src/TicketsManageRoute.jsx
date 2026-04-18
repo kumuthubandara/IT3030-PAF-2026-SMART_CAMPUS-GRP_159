@@ -1,11 +1,11 @@
+/**
+ * Route guard for `/tickets/manage`: only admin/technician see the full queue (`TicketsPage`).
+ * Students and lecturers are redirected to role-appropriate maintenance pages.
+ */
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import TicketsPage from "./TicketsPage";
 
-/**
- * Guards /tickets/manage: only staff roles should see the full ticket table.
- * Students and lecturers use their own maintenance/submit flows instead.
- */
 export default function TicketsManageRoute() {
   const { user } = useAuth();
 

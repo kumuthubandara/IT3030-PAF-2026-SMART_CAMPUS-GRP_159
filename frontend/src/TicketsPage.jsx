@@ -1,5 +1,6 @@
 /**
- * Staff ticket queue: filters, export hook, and optional create UI (disabled for this project).
+ * Staff ticket queue for admin/technician: filters, CSV export, and navigation to ticket detail.
+ * Students and lecturers are redirected to their own submit flows.
  */
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";

@@ -16,6 +16,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
+/**
+ * Core domain service for Smart Campus incident tickets: create/list/export, status workflow,
+ * technician assignment, threaded comments, image evidence URLs, audit activities, and
+ * in-app notifications. Business rules align with IT3030 Module&nbsp;C (workflow + ownership).
+ */
 @Service
 public class TicketService {
 
@@ -40,6 +45,7 @@ public class TicketService {
         this.sequenceService = sequenceService;
     }
 
+    /** Creates a new ticket in {@link TicketStatus#OPEN} owned by the authenticated reporter. */
     public Ticket createTicket(CreateTicketRequest request, Authentication auth) {
         Ticket ticket = new Ticket();
         ticket.setId(sequenceService.next(SEQ_TICKETS));
@@ -81,6 +87,7 @@ public class TicketService {
                 .toList();
     }
 
+    /** Admin-only CSV export of the same rows {@link #listTickets} would return for that role. */
     public String exportTicketsCsv(Authentication auth, TicketStatus status, TicketPriority priority, String q) {
         if (!hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("Only admin can export ticket reports.");
@@ -108,6 +115,7 @@ public class TicketService {
         return csv.toString();
     }
 
+    /** Loads one ticket plus audit trail when the caller is admin, owner, or assigned technician. */
     public Ticket getTicket(Long id, Authentication auth) {
         Ticket ticket = findTicket(id);
         if (hasRole(auth, "ROLE_ADMIN") || ticket.getCreatedUser().equals(auth.getName())
@@ -126,7 +134,12 @@ public class TicketService {
                 throw new BadRequestException("Technician can only update assigned tickets.");
             }
         }
-        validateTransition(ticket.getStatus(), nextStatus);
+        if (nextStatus == TicketStatus.REJECTED) {
+            if (resolutionNotes == null || resolutionNotes.isBlank()) {
+                throw new BadRequestException("A rejection reason is required when rejecting a ticket.");
+            }
+        }
+        validateTransition(ticket.getStatus(), nextStatus, auth);
         ticket.setStatus(nextStatus);
         if ((nextStatus == TicketStatus.RESOLVED || nextStatus == TicketStatus.CLOSED) && (resolutionNotes == null || resolutionNotes.isBlank())) {
             throw new BadRequestException("Resolution notes are required when resolving or closing tickets.");
@@ -141,6 +154,7 @@ public class TicketService {
         return saved;
     }
 
+    /** Admin-only change of {@link TicketPriority}. */
     public Ticket updatePriority(Long id, TicketPriority priority, Authentication auth) {
         if (!hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("Only admin can change ticket priority.");
@@ -154,6 +168,7 @@ public class TicketService {
         return saved;
     }
 
+    /** Admin-only assignment of {@code technicianUsername} (Spring Security principal name). */
     public Ticket assignTechnician(Long id, String technicianUsername, Authentication auth) {
         if (!hasRole(auth, "ROLE_ADMIN")) {
             throw new BadRequestException("Only admin can assign technicians.");
@@ -167,6 +182,7 @@ public class TicketService {
         return saved;
     }
 
+    /** Appends a comment; notifies other participants when applicable. */
     public TicketComment addComment(Long ticketId, CommentRequest request, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
         LocalDateTime now = LocalDateTime.now();
@@ -184,6 +200,7 @@ public class TicketService {
         return comment;
     }
 
+    /** Updates a comment message; only the original author may edit. */
     public TicketComment editComment(Long ticketId, Long commentId, CommentRequest request, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
         TicketComment comment = ticket.getComments().stream()
@@ -200,6 +217,7 @@ public class TicketService {
         return comment;
     }
 
+    /** Deletes a comment if the caller is the author or an administrator. */
     public void deleteComment(Long ticketId, Long commentId, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
         TicketComment comment = ticket.getComments().stream()
@@ -215,15 +233,25 @@ public class TicketService {
         createActivity(ticket, auth.getName(), "Comment deleted");
     }
 
-    public List<TicketAttachment> addAttachments(Long ticketId, AttachmentUploadRequest request) {
+    /**
+     * Adds up to three validated image evidence URLs; only ticket owner or admin, not on terminal tickets.
+     */
+    public List<TicketAttachment> addAttachments(Long ticketId, AttachmentUploadRequest request, Authentication auth) {
         Ticket ticket = findTicket(ticketId);
+        if (!hasRole(auth, "ROLE_ADMIN") && !ticket.getCreatedUser().equals(auth.getName())) {
+            throw new BadRequestException("You can only add attachments to tickets you created.");
+        }
+        if (ticket.getStatus() == TicketStatus.CLOSED || ticket.getStatus() == TicketStatus.REJECTED) {
+            throw new BadRequestException("Cannot add attachments to a closed or rejected ticket.");
+        }
         int existing = ticket.getAttachments() == null ? 0 : ticket.getAttachments().size();
         if (existing + request.imageUrls().size() > 3) {
             throw new BadRequestException("A ticket can have a maximum of 3 images.");
         }
         List<TicketAttachment> saved = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
-        for (String url : request.imageUrls()) {
+        for (String raw : request.imageUrls()) {
+            String url = validateEvidenceImageUrl(raw);
             TicketAttachment attachment = new TicketAttachment();
             attachment.setId(sequenceService.next(SEQ_ATTACHMENTS));
             attachment.setImageUrl(url);
@@ -233,24 +261,28 @@ public class TicketService {
         }
         ticket.setUpdatedAt(now);
         ticketRepository.save(ticket);
-        createActivity(ticket, "system", "Added " + saved.size() + " attachment(s)");
+        createActivity(ticket, auth.getName(), "Added " + saved.size() + " attachment(s)");
         return saved;
     }
 
+    /** Notification inbox for the authenticated user (newest first). */
     public List<TicketNotification> getMyNotifications(Authentication auth) {
         return notificationRepository.findByRecipientOrderByCreatedAtDesc(auth.getName());
     }
 
+    /** Activity log for a ticket (same visibility rules as {@link #getTicket}). */
     public List<TicketActivity> listTicketActivities(Long ticketId, Authentication auth) {
         getTicket(ticketId, auth);
         return activityRepository.findByTicketIdOrderByCreatedAtDesc(ticketId);
     }
 
+    /** Loads aggregate or throws {@link NotFoundException}; ensures comment/attachment lists are non-null. */
     private Ticket findTicket(Long id) {
         Ticket t = ticketRepository.findById(id).orElseThrow(() -> new NotFoundException("Ticket not found."));
         return normalizeLists(t);
     }
 
+    /** Avoids null embedded lists when reading older Mongo documents. */
     private Ticket normalizeLists(Ticket t) {
         if (t.getComments() == null) {
             t.setComments(new ArrayList<>());
@@ -261,14 +293,86 @@ public class TicketService {
         return t;
     }
 
-    private void validateTransition(TicketStatus current, TicketStatus next) {
-        // Allow any status → any status (same as previous JPA build).
+    /**
+     * Assignment workflow: OPEN → IN_PROGRESS → RESOLVED → CLOSED; administrators may set
+     * REJECTED from OPEN or IN_PROGRESS (with reason). Terminal: CLOSED, REJECTED.
+     */
+    private void validateTransition(TicketStatus current, TicketStatus next, Authentication auth) {
+        if (current == next) {
+            throw new BadRequestException("Ticket is already in status " + next + ".");
+        }
+        if (current == TicketStatus.CLOSED || current == TicketStatus.REJECTED) {
+            throw new BadRequestException("Cannot change the status of a " + current + " ticket.");
+        }
+        if (next == TicketStatus.REJECTED) {
+            if (!hasRole(auth, "ROLE_ADMIN")) {
+                throw new BadRequestException("Only an administrator can reject a ticket.");
+            }
+            if (current != TicketStatus.OPEN && current != TicketStatus.IN_PROGRESS) {
+                throw new BadRequestException("A ticket can only be rejected while it is OPEN or IN_PROGRESS.");
+            }
+            return;
+        }
+        switch (current) {
+            case OPEN -> {
+                if (next != TicketStatus.IN_PROGRESS) {
+                    throw new BadRequestException("From OPEN, the next status must be IN_PROGRESS (or REJECTED by an administrator).");
+                }
+            }
+            case IN_PROGRESS -> {
+                if (next != TicketStatus.RESOLVED) {
+                    throw new BadRequestException("From IN_PROGRESS, the next status must be RESOLVED (or REJECTED by an administrator).");
+                }
+            }
+            case RESOLVED -> {
+                if (next != TicketStatus.CLOSED) {
+                    throw new BadRequestException("From RESOLVED, the only allowed next status is CLOSED.");
+                }
+            }
+            default -> throw new BadRequestException("Unsupported status transition from " + current + " to " + next + ".");
+        }
     }
 
+    private static final int MAX_EVIDENCE_URL_LENGTH = 800_000;
+
+    /**
+     * Accepts HTTPS URLs, local dev HTTP, browser blob URLs, or small inline data:image/* payloads.
+     * Rejects javascript: and other dangerous schemes.
+     */
+    private String validateEvidenceImageUrl(String raw) {
+        if (raw == null) {
+            throw new BadRequestException("Image URL cannot be null.");
+        }
+        String url = raw.trim();
+        if (url.isEmpty()) {
+            throw new BadRequestException("Image URL cannot be empty.");
+        }
+        if (url.length() > MAX_EVIDENCE_URL_LENGTH) {
+            throw new BadRequestException("Image evidence exceeds maximum allowed size.");
+        }
+        String lower = url.toLowerCase(Locale.ROOT);
+        if (lower.contains("\n") || lower.contains("\r") || lower.contains("<script")) {
+            throw new BadRequestException("Invalid image URL.");
+        }
+        boolean ok = lower.startsWith("https://")
+                || lower.startsWith("http://localhost")
+                || lower.startsWith("http://127.0.0.1")
+                || lower.startsWith("blob:http://")
+                || lower.startsWith("blob:https://")
+                || lower.startsWith("data:image/");
+        if (!ok) {
+            throw new BadRequestException(
+                    "Image evidence must use https://, a localhost URL, a browser blob URL, or data:image/… (inline image).");
+        }
+        return url;
+    }
+
+    /** True if the security principal has the given Spring authority (e.g. {@code ROLE_ADMIN}). */
     private boolean hasRole(Authentication auth, String role) {
         return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals(role));
     }
 
+    /** Notifies ticket owner and assigned technician when someone else acts on the ticket. */
     private void createNotification(Ticket ticket, String actor, String message) {
         LocalDateTime now = LocalDateTime.now();
         if (!ticket.getCreatedUser().equals(actor)) {
@@ -293,6 +397,7 @@ public class TicketService {
         }
     }
 
+    /** Persists an audit row for the ticket timeline. */
     private void createActivity(Ticket ticket, String actor, String action) {
         TicketActivity activity = new TicketActivity();
         activity.setId(sequenceService.next(SEQ_ACTIVITIES));
@@ -303,6 +408,7 @@ public class TicketService {
         activityRepository.save(activity);
     }
 
+    /** RFC-style CSV field escaping for export. */
     private String csvEscape(String value) {
         if (value == null) {
             return "";

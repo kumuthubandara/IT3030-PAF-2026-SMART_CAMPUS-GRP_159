@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 /**
  * Embedded inside a {@link Ticket} document (not a separate collection).
+ * Authors may edit their own row; delete rules are enforced in {@link TicketService}.
  */
 public class TicketComment {
 

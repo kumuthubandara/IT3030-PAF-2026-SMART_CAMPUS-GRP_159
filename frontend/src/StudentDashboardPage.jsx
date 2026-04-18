@@ -28,7 +28,7 @@ const tiles = [
   {
     id: "maintenance",
     title: "Maintenance",
-    description: "Report or track facility issues and maintenance requests.",
+    description: "Open maintenance tickets—submit new issues and track your requests.",
     iconBg: "bg-amber-500/20 text-amber-400",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -207,7 +207,7 @@ export default function StudentDashboardPage() {
         <div className="mt-12">
           <h2 className="font-heading text-lg font-semibold text-white">Your tools</h2>
           <p className="mt-1 text-sm text-slate-400">
-            Tap a card to open details in a popup.
+            Tap a card to open details. Maintenance opens the ticket flow in a full page.
           </p>
         </div>
 
@@ -218,7 +218,7 @@ export default function StudentDashboardPage() {
               type="button"
               onClick={() => {
                 if (tile.id === "maintenance") {
-                  navigate("/student/maintenance");
+                  navigate("/tickets");
                   return;
                 }
                 setModal(tile.id);
@@ -333,18 +333,6 @@ export default function StudentDashboardPage() {
                       <dd className="mt-1 text-slate-200">{user?.email || "—"}</dd>
                     </div>
                   </dl>
-                </div>
-              )}
-
-              {modal === "maintenance" && (
-                <div className="space-y-4 text-sm text-slate-400">
-                  <p>
-                    Report or track facility issues from here once the ticketing API is
-                    connected.
-                  </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No open requests.
-                  </div>
                 </div>
               )}
 

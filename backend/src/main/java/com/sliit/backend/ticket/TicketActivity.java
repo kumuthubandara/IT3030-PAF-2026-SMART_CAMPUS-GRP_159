@@ -5,6 +5,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
+/** Append-only audit row for a ticket (assignments, status moves, comments, attachments). */
 @Document(collection = "ticket_activities")
 public class TicketActivity {
 

@@ -1,5 +1,6 @@
 /**
- * Thin fetch wrapper for the Spring ticket module. Maps UI roles to demo Basic Auth users.
+ * Thin fetch wrapper for the Spring ticket module (`/api/tickets`, `/api/notifications`).
+ * Maps UI roles to demo Basic Auth users; all mutating calls send `Authorization: Basic …`.
  */
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 
@@ -21,7 +22,8 @@ export function backendUsernameForUser(user) {
   return toBackendUser(user?.role).username;
 }
 
-function authHeader(user) {
+/** Used by admin dashboard and other screens that call Spring Security–protected APIs. */
+export function authHeader(user) {
   const creds = toBackendUser(user?.role);
   const token = btoa(`${creds.username}:${creds.password}`);
   return `Basic ${token}`;

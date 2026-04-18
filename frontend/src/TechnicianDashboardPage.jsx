@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
@@ -37,6 +37,22 @@ const tiles = [
           strokeLinejoin="round"
           strokeWidth={2}
           d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "maintenance",
+    title: "Maintenance",
+    description: "Track and manage maintenance and incident tickets (staff queue).",
+    iconBg: "bg-amber-500/20 text-amber-400",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
         />
       </svg>
     ),
@@ -109,6 +125,7 @@ function CloseIcon() {
 
 export default function TechnicianDashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const displayName = user?.name || "Technician";
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
@@ -172,6 +189,12 @@ export default function TechnicianDashboardPage() {
           </div>
           <div className="flex shrink-0 flex-wrap gap-3">
             <Link
+              to="/tickets"
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/20"
+            >
+              Maintenance
+            </Link>
+            <Link
               to="/"
               className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
             >
@@ -212,7 +235,9 @@ export default function TechnicianDashboardPage() {
 
         <div className="mt-12">
           <h2 className="font-heading text-lg font-semibold text-white">Your tools</h2>
-          <p className="mt-1 text-sm text-slate-400">Tap a card to open details in a popup.</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Tap a card for details. Maintenance opens the ticket queue in a full page.
+          </p>
         </div>
 
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
@@ -278,7 +303,9 @@ export default function TechnicianDashboardPage() {
             aria-modal="true"
             aria-labelledby="technician-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-cyan-500/20 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" || modal === "my-bookings" ? "max-w-2xl" : "max-w-lg"
+              modal === "settings" || modal === "my-bookings" || modal === "assigned-tickets"
+                ? "max-w-2xl"
+                : "max-w-lg"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-cyan-500/15 pb-4">
@@ -328,29 +355,55 @@ export default function TechnicianDashboardPage() {
               )}
 
               {modal === "assigned-tickets" && (
-                <div className="space-y-4 text-sm text-slate-400">
-                  <p>Tickets currently assigned to you.</p>
-                  <ul className="space-y-3">
-                    {assignedTickets.map((ticket) => (
-                      <li key={ticket.id} className="rounded-xl border border-slate-600/50 bg-slate-950/50 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-mono text-xs text-slate-500">{ticket.id}</p>
-                            <p className="mt-1 font-medium text-slate-200">{ticket.title}</p>
-                            <p className="text-xs text-slate-500">{ticket.location}</p>
+                <div className="space-y-6 text-sm text-slate-400">
+                  <div className="space-y-4">
+                    <p>Tickets currently assigned to you.</p>
+                    <ul className="space-y-3">
+                      {assignedTickets.map((ticket) => (
+                        <li key={ticket.id} className="rounded-xl border border-slate-600/50 bg-slate-950/50 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-mono text-xs text-slate-500">{ticket.id}</p>
+                              <p className="mt-1 font-medium text-slate-200">{ticket.title}</p>
+                              <p className="text-xs text-slate-500">{ticket.location}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityClass(ticket.priority)}`}>
+                                {ticket.priority}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(ticket.status)}`}>
+                                {ticket.status}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2">
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityClass(ticket.priority)}`}>
-                              {ticket.priority}
-                            </span>
-                            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(ticket.status)}`}>
-                              {ticket.status}
-                            </span>
-                          </div>
-                        </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="space-y-4 border-t border-cyan-500/15 pt-6">
+                    <p className="font-medium text-slate-200">Change ticket progress using this sequence</p>
+                    <ol className="space-y-3 rounded-xl border border-slate-600/50 bg-slate-950/50 p-4">
+                      <li>
+                        <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-xs font-semibold text-cyan-200">OPEN</span>
+                        <p className="mt-1 text-xs text-slate-500">Ticket received and waiting to be worked on.</p>
                       </li>
-                    ))}
-                  </ul>
+                      <li>
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">IN_PROGRESS</span>
+                        <p className="mt-1 text-xs text-slate-500">You are actively diagnosing or fixing the issue.</p>
+                      </li>
+                      <li>
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200">RESOLVED</span>
+                        <p className="mt-1 text-xs text-slate-500">Work completed and ready for confirmation/closure.</p>
+                      </li>
+                    </ol>
+                    <p className="text-xs text-slate-500">
+                      In production, these updates should sync with the{" "}
+                      <Link to="/tickets/manage" className="text-cyan-400 hover:text-cyan-300">
+                        ticket queue
+                      </Link>{" "}
+                      and audit log.
+                    </p>
+                  </div>
                 </div>
               )}
 

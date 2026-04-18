@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
+import { authHeader } from "./api/ticketsApi";
 import AdminManageBookings from "./components/admin-bookings/AdminManageBookings.jsx";
 import { apiUrl } from "./apiBase.js";
 import { recentActivitiesListUrl } from "./services/recentActivitiesApi.js";
@@ -81,7 +82,7 @@ const tiles = [
   {
     id: "maintenance",
     title: "Maintenance",
-    description: "Track and manage all maintenance and incident tickets.",
+    description: "Open the maintenance ticket queue—same as the former Tickets link in the header.",
     iconBg: "bg-amber-500/20 text-amber-400",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -491,6 +492,7 @@ function buildResourceName(
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const displayName = user?.name || "Administrator";
   const role = String(user?.role ?? "").trim().toLowerCase();
   const isAdmin = role === "administrator" || role === "admin";
@@ -556,7 +558,9 @@ export default function AdminDashboardPage() {
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(recentActivitiesListUrl(20, user));
+      const res = await fetch(recentActivitiesListUrl(20, user), {
+        headers: { Authorization: authHeader(user) },
+      });
       if (!res.ok) throw new Error("Failed to load");
 
       const data = await res.json();
@@ -827,6 +831,7 @@ export default function AdminDashboardPage() {
         method,
         headers: {
           "Content-Type": "application/json",
+          Authorization: authHeader(user),
         },
         body: JSON.stringify(facilityPayload),
       });
@@ -918,6 +923,7 @@ export default function AdminDashboardPage() {
     try {
       const res = await fetch(apiUrl(`/api/resources/${id}`), {
         method: "DELETE",
+        headers: { Authorization: authHeader(user) },
       });
       if (!res.ok) throw new Error("Failed to delete");
       await loadFacilities();
@@ -993,7 +999,9 @@ export default function AdminDashboardPage() {
 
         <div className="mt-12">
           <h2 className="font-heading text-lg font-semibold text-white">Your tools</h2>
-          <p className="mt-1 text-sm text-slate-400">Tap a card to open details in a popup.</p>
+          <p className="mt-1 text-sm text-slate-400">
+            Tap a card to open details. Maintenance opens the ticket queue in a full page.
+          </p>
         </div>
 
         <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -1001,7 +1009,13 @@ export default function AdminDashboardPage() {
             <button
               key={tile.id}
               type="button"
-              onClick={() => setModal(tile.id)}
+              onClick={() => {
+                if (tile.id === "maintenance") {
+                  navigate("/tickets");
+                  return;
+                }
+                setModal(tile.id);
+              }}
               className="group w-full rounded-2xl border border-cyan-500/15 bg-slate-900/80 p-6 text-left shadow-lg shadow-black/30 transition hover:-translate-y-0.5 hover:border-cyan-500/40 hover:shadow-cyan-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50"
             >
               <div className={`inline-flex h-12 w-12 items-center justify-center rounded-xl ${tile.iconBg}`}>
@@ -1628,21 +1642,6 @@ export default function AdminDashboardPage() {
               )}
 
               {modal === "manage-bookings" && <AdminManageBookings user={user} />}
-
-              {modal === "maintenance" && (
-                <div className="space-y-4 text-sm text-slate-400">
-                  <p>
-                    Oversee all maintenance and incident tickets across campus. Open the{" "}
-                    <Link to="/maintenance" className="font-medium text-cyan-400 hover:text-cyan-300">
-                      Maintenance
-                    </Link>{" "}
-                    page for the shared campus view used by technicians and reporters.
-                  </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No tickets in this panel (demo).
-                  </div>
-                </div>
-              )}
 
               {modal === "contact-messages" && (
                 <div className="space-y-4 text-sm text-slate-400">
