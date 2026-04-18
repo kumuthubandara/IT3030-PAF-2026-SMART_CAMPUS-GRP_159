@@ -8,14 +8,28 @@ import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import { backendUsernameForUser, ticketsApi } from "./api/ticketsApi";
 
-const STATUS_FLOW = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "REJECTED"];
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH"];
 
-function ticketsHubPath(role) {
-  const r = String(role ?? "").trim().toLowerCase();
-  if (r === "student") return "/student/maintenance";
-  if (r === "lecturer") return "/lecturer/maintenance";
-  return "/tickets/manage";
+/** Matches backend TicketService workflow (OPEN → IN_PROGRESS → RESOLVED → CLOSED; admin may REJECT from OPEN/IN_PROGRESS). */
+function allowedNextStatuses(status, isAdmin) {
+  const s = String(status ?? "").toUpperCase();
+  if (s === "CLOSED" || s === "REJECTED") return [];
+  if (s === "OPEN") {
+    const next = ["IN_PROGRESS"];
+    if (isAdmin) next.push("REJECTED");
+    return next;
+  }
+  if (s === "IN_PROGRESS") {
+    const next = ["RESOLVED"];
+    if (isAdmin) next.push("REJECTED");
+    return next;
+  }
+  if (s === "RESOLVED") return ["CLOSED"];
+  return [];
+}
+
+function ticketsHubPath() {
+  return "/tickets";
 }
 
 function ticketsHubBackLabel(role) {
@@ -44,9 +58,11 @@ export default function TicketDetailsPage() {
   const isTechnician = role === "technician" || role === "tech";
   const isStudent = role === "student";
   const isLecturer = role === "lecturer";
-  const canUpdateStatus = isAdmin || isTechnician;
+  const ticketIsTerminal = ticket && (ticket.status === "CLOSED" || ticket.status === "REJECTED");
+  const canUpdateStatus = (isAdmin || isTechnician) && ticket && !ticketIsTerminal;
   /** Backend allows USER + ADMIN to POST attachments; technicians are read-only here. */
   const showAttachmentUpload = isStudent || isLecturer || isAdmin;
+  const canAddAttachments = showAttachmentUpload && ticket && !ticketIsTerminal;
   const fileInputRef = useRef(null);
   const [statusDraft, setStatusDraft] = useState("OPEN");
   const [priorityDraft, setPriorityDraft] = useState("MEDIUM");
@@ -69,7 +85,9 @@ export default function TicketDetailsPage() {
       setError("");
       const data = await ticketsApi.getTicket(id, user);
       setTicket(data);
-      setStatusDraft(data.status);
+      const admin = role === "administrator" || role === "admin";
+      const nextStatuses = allowedNextStatuses(data.status, admin);
+      setStatusDraft(nextStatuses.length > 0 ? nextStatuses[0] : data.status);
       setPriorityDraft(data.priority);
       const activityData = await ticketsApi.listActivities(id, user);
       setActivities(Array.isArray(activityData) ? activityData : []);
@@ -88,7 +106,7 @@ export default function TicketDetailsPage() {
     try {
       setError("");
       await ticketsApi.updateStatusWithNotes(id, statusDraft, resolutionNotes, user);
-      if (statusDraft === "RESOLVED" || statusDraft === "CLOSED") {
+      if (statusDraft === "RESOLVED" || statusDraft === "CLOSED" || statusDraft === "REJECTED") {
         setResolutionNotes("");
       }
       await loadTicket();
@@ -175,7 +193,7 @@ export default function TicketDetailsPage() {
       <SiteHeader />
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <Link to={ticketsHubPath(role)} className="text-sm text-cyan-300 hover:text-cyan-200">
+          <Link to={ticketsHubPath()} className="text-sm text-cyan-300 hover:text-cyan-200">
             {ticketsHubBackLabel(role)}
           </Link>
         </div>
@@ -299,8 +317,11 @@ export default function TicketDetailsPage() {
 
             <section className="rounded-2xl border border-cyan-500/20 bg-slate-900/70 p-5">
               <h2 className="mb-3 text-lg font-semibold text-cyan-300">Attachments (max 3)</h2>
-              {showAttachmentUpload ? (
+              {canAddAttachments ? (
                 <>
+                  <p className="mb-2 text-xs text-slate-500">
+                    Allowed evidence links: HTTPS, localhost, browser preview (blob:), or small data:image/… URLs (validated on the server).
+                  </p>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -358,6 +379,10 @@ export default function TicketDetailsPage() {
                     </div>
                   ) : null}
                 </>
+              ) : showAttachmentUpload && ticketIsTerminal ? (
+                <p className="mb-4 text-sm text-slate-400">
+                  This ticket is {ticket.status}. No further image evidence can be added.
+                </p>
               ) : (
                 <p className="mb-4 text-sm text-slate-400">Uploading additional images is limited to the ticket reporter or an administrator.</p>
               )}

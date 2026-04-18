@@ -6,6 +6,6 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record AttachmentUploadRequest(
-        @NotEmpty @Size(max = 3) List<@Size(max = 500) String> imageUrls
+        @NotEmpty @Size(max = 3) List<@Size(min = 1, max = 800_000) String> imageUrls
 ) {
 }

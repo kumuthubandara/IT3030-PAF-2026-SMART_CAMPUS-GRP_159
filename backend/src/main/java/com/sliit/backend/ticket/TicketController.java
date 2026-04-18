@@ -115,8 +115,9 @@ public class TicketController {
     @PostMapping("/{id}/attachments")
     @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public ResponseEntity<List<TicketAttachment>> addAttachments(@PathVariable Long id,
-                                                                 @Valid @RequestBody AttachmentUploadRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.addAttachments(id, request));
+                                                                 @Valid @RequestBody AttachmentUploadRequest request,
+                                                                 Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.addAttachments(id, request, authentication));
     }
 
     @GetMapping("/{id}/activities")
