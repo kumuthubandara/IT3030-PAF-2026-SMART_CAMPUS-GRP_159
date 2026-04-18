@@ -4,7 +4,9 @@ import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+import ManagedBookingsListSection from "./features/bookings/components/ManagedBookingsListSection.jsx";
+import * as bookingsApi from "./services/bookingsApi.js";
+import { recentActivitiesListUrl } from "./services/recentActivitiesApi.js";
 
 const tiles = [
   {
@@ -56,9 +58,25 @@ const tiles = [
     ),
   },
   {
-    id: "update-status",
-    title: "Update Status",
-    description: "Change ticket progress (OPEN ? IN_PROGRESS ? RESOLVED).",
+    id: "assigned-tickets",
+    title: "Assigned Tickets",
+    description: "View and manage maintenance tickets assigned to you.",
+    iconBg: "bg-amber-500/20 text-amber-400",
+    icon: (
+      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "my-bookings",
+    title: "My Booking",
+    description: "Equipment reservations you requested—pending until an administrator approves or rejects them.",
     iconBg: "bg-violet-500/20 text-violet-300",
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -66,12 +84,30 @@ const tiles = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M9 5l7 7-7 7"
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         />
       </svg>
     ),
   },
 ];
+
+const assignedTickets = [
+  { id: "TK-4821", location: "Block C", title: "Faulty projector", status: "OPEN", priority: "High" },
+  { id: "TK-4816", location: "Admin wing", title: "AC not cooling", status: "IN_PROGRESS", priority: "Medium" },
+  { id: "TK-4809", location: "Lab 3", title: "Broken door lock", status: "RESOLVED", priority: "Low" },
+];
+
+function priorityClass(priority) {
+  if (priority === "High") return "text-red-300 bg-red-500/15";
+  if (priority === "Medium") return "text-amber-200 bg-amber-500/15";
+  return "text-slate-300 bg-slate-500/20";
+}
+
+function statusClass(status) {
+  if (status === "OPEN") return "text-cyan-200 bg-cyan-500/15";
+  if (status === "IN_PROGRESS") return "text-amber-200 bg-amber-500/15";
+  return "text-emerald-200 bg-emerald-500/15";
+}
 
 function formatDateTime(value) {
   const d = new Date(value);
@@ -96,7 +132,7 @@ export default function TechnicianDashboardPage() {
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`);
+      const res = await fetch(recentActivitiesListUrl(10, user));
       if (!res.ok) {
         throw new Error("Failed to load recent activity");
       }
@@ -128,7 +164,7 @@ export default function TechnicianDashboardPage() {
       void loadRecentActivities();
     }, 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [user]);
 
   const activeTile = tiles.find((t) => t.id === modal);
 
@@ -138,7 +174,7 @@ export default function TechnicianDashboardPage() {
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
         <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400/90">
-          SMART CAMPUS � TECHNICIAN
+          SMART CAMPUS • TECHNICIAN
         </p>
 
         <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -163,6 +199,18 @@ export default function TechnicianDashboardPage() {
               className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
             >
               Home
+            </Link>
+            <Link
+              to="/contact"
+              className="rounded-lg border border-slate-600/80 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500/50 hover:text-white"
+            >
+              Contact
+            </Link>
+            <Link
+              to="/technician/bookings"
+              className="rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-200 transition hover:border-cyan-400/60 hover:text-white"
+            >
+              Book resources
             </Link>
           </div>
         </div>
@@ -232,7 +280,7 @@ export default function TechnicianDashboardPage() {
                 >
                   <p className="text-sm text-slate-200">{activity.message}</p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {activity.category || "SYSTEM"} � {formatDateTime(activity.createdAt)}
+                    {activity.category || "SYSTEM"} · {formatDateTime(activity.createdAt)}
                   </p>
                 </li>
               ))}
@@ -255,7 +303,9 @@ export default function TechnicianDashboardPage() {
             aria-modal="true"
             aria-labelledby="technician-modal-title"
             className={`max-h-[90vh] w-full overflow-y-auto rounded-2xl border border-cyan-500/20 bg-slate-900 p-6 shadow-2xl ${
-              modal === "settings" ? "max-w-2xl" : "max-w-lg"
+              modal === "settings" || modal === "my-bookings" || modal === "assigned-tickets"
+                ? "max-w-2xl"
+                : "max-w-lg"
             }`}
           >
             <div className="flex items-start justify-between gap-4 border-b border-cyan-500/15 pb-4">
@@ -281,7 +331,7 @@ export default function TechnicianDashboardPage() {
               {modal === "profile" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    You are signed in as <span className="text-slate-200">{user?.email || "�"}</span> with the{" "}
+                    You are signed in as <span className="text-slate-200">{user?.email || "—"}</span> with the{" "}
                     <span className="text-cyan-400">Technician</span> role.
                   </p>
                   <dl className="grid gap-4 border-t border-cyan-500/15 pt-4 sm:grid-cols-2">
@@ -291,7 +341,7 @@ export default function TechnicianDashboardPage() {
                     </div>
                     <div>
                       <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Campus email</dt>
-                      <dd className="mt-1 text-slate-200">{user?.email || "�"}</dd>
+                      <dd className="mt-1 text-slate-200">{user?.email || "—"}</dd>
                     </div>
                   </dl>
                 </div>
@@ -299,35 +349,90 @@ export default function TechnicianDashboardPage() {
 
               {modal === "settings" && (
                 <div className="space-y-4">
-                  <p className="text-sm text-slate-400">Demo controls only � wire these fields to your API when ready.</p>
+                  <p className="text-sm text-slate-400">Demo controls only — wire these fields to your API when ready.</p>
                   <StudentSettingsForm />
                 </div>
               )}
 
-              {modal === "update-status" && (
+              {modal === "assigned-tickets" && (
+                <div className="space-y-6 text-sm text-slate-400">
+                  <div className="space-y-4">
+                    <p>Tickets currently assigned to you.</p>
+                    <ul className="space-y-3">
+                      {assignedTickets.map((ticket) => (
+                        <li key={ticket.id} className="rounded-xl border border-slate-600/50 bg-slate-950/50 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-mono text-xs text-slate-500">{ticket.id}</p>
+                              <p className="mt-1 font-medium text-slate-200">{ticket.title}</p>
+                              <p className="text-xs text-slate-500">{ticket.location}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${priorityClass(ticket.priority)}`}>
+                                {ticket.priority}
+                              </span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(ticket.status)}`}>
+                                {ticket.status}
+                              </span>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="space-y-4 border-t border-cyan-500/15 pt-6">
+                    <p className="font-medium text-slate-200">Change ticket progress using this sequence</p>
+                    <ol className="space-y-3 rounded-xl border border-slate-600/50 bg-slate-950/50 p-4">
+                      <li>
+                        <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-xs font-semibold text-cyan-200">OPEN</span>
+                        <p className="mt-1 text-xs text-slate-500">Ticket received and waiting to be worked on.</p>
+                      </li>
+                      <li>
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">IN_PROGRESS</span>
+                        <p className="mt-1 text-xs text-slate-500">You are actively diagnosing or fixing the issue.</p>
+                      </li>
+                      <li>
+                        <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200">RESOLVED</span>
+                        <p className="mt-1 text-xs text-slate-500">Work completed and ready for confirmation/closure.</p>
+                      </li>
+                    </ol>
+                    <p className="text-xs text-slate-500">
+                      In production, these updates should sync with the{" "}
+                      <Link to="/tickets/manage" className="text-cyan-400 hover:text-cyan-300">
+                        ticket queue
+                      </Link>{" "}
+                      and audit log.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {modal === "my-bookings" && (
                 <div className="space-y-4 text-sm text-slate-400">
-                  <p>Change ticket progress using this sequence:</p>
-                  <ol className="space-y-3 rounded-xl border border-slate-600/50 bg-slate-950/50 p-4">
-                    <li>
-                      <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-xs font-semibold text-cyan-200">OPEN</span>
-                      <p className="mt-1 text-xs text-slate-500">Ticket received and waiting to be worked on.</p>
-                    </li>
-                    <li>
-                      <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">IN_PROGRESS</span>
-                      <p className="mt-1 text-xs text-slate-500">You are actively diagnosing or fixing the issue.</p>
-                    </li>
-                    <li>
-                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-200">RESOLVED</span>
-                      <p className="mt-1 text-xs text-slate-500">Work completed and ready for confirmation/closure.</p>
-                    </li>
-                  </ol>
-                  <p className="text-xs text-slate-500">
-                    In production, these updates should sync with the{" "}
-                    <Link to="/tickets/manage" className="text-cyan-400 hover:text-cyan-300">
-                      ticket queue
+                  <p>
+                    Use{" "}
+                    <Link to="/technician/bookings" className="font-medium text-cyan-400 hover:text-cyan-300">
+                      Book resources
                     </Link>{" "}
-                    and audit log.
+                    on your dashboard for the same booking grid as lecturers (equipment only). Browse read-only on{" "}
+                    <Link to="/facilities" className="font-medium text-cyan-400 hover:text-cyan-300">
+                      Facilities
+                    </Link>
+                    . Requests are <strong className="text-amber-200/90">PENDING</strong> until an administrator
+                    approves or rejects them.
                   </p>
+                  <ManagedBookingsListSection
+                    embedded
+                    audience="technician"
+                    bookingScope="equipment"
+                    user={user}
+                    fetchMyBookings={bookingsApi.fetchMyBookings}
+                    deleteBooking={bookingsApi.deleteMyBooking}
+                    cancelBooking={(id, u) => bookingsApi.cancelBooking(id, u, {})}
+                    updateBooking={bookingsApi.updateBooking}
+                    fetchResourceById={bookingsApi.fetchResourceById}
+                    embeddedEmptyHint="No equipment bookings yet. Open Book resources on the dashboard to request kit from the equipment catalogue."
+                  />
                 </div>
               )}
             </div>

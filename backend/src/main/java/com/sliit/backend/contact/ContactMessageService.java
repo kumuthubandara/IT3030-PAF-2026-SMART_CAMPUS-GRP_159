@@ -35,7 +35,11 @@ public class ContactMessageService {
         entity.setStatus("NEW");
         entity.onCreateDefaults();
         ContactMessage saved = repository.save(entity);
-        activityService.add("CONTACT_MESSAGE", "New contact message from " + saved.getName() + ": " + saved.getSubject());
+        activityService.add(
+                "CONTACT_MESSAGE",
+                "New contact message from " + saved.getName() + ": " + saved.getSubject(),
+                saved.getEmail(),
+                true);
         return saved;
     }
 

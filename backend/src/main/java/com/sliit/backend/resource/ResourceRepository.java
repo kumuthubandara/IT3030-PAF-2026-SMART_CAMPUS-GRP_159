@@ -14,17 +14,23 @@ public interface ResourceRepository extends MongoRepository<Resource, String> {
 
     List<Resource> findByCapacityGreaterThanEqual(Integer capacity);
 
-    boolean existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndIdNot(String type, String hallNumber, String id);
+    boolean existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCase(
+            String type, String hallNumber, String building, String floor, String block);
 
-    boolean existsByTypeIgnoreCaseAndHallNumberIgnoreCase(String type, String hallNumber);
+    boolean existsByTypeIgnoreCaseAndHallNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCaseAndIdNot(
+            String type, String hallNumber, String building, String floor, String block, String id);
 
-    boolean existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCaseAndIdNot(String type, String meetingRoomNumber, String id);
+    boolean existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCase(
+            String type, String meetingRoomNumber, String building, String floor, String block);
 
-    boolean existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCase(String type, String meetingRoomNumber);
+    boolean existsByTypeIgnoreCaseAndMeetingRoomNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCaseAndIdNot(
+            String type, String meetingRoomNumber, String building, String floor, String block, String id);
 
-    boolean existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCaseAndIdNot(String type, String workspaceNumber, String id);
+    boolean existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCase(
+            String type, String workspaceNumber, String building, String floor, String block);
 
-    boolean existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCase(String type, String workspaceNumber);
+    boolean existsByTypeIgnoreCaseAndWorkspaceNumberIgnoreCaseAndBuildingIgnoreCaseAndFloorIgnoreCaseAndBlockIgnoreCaseAndIdNot(
+            String type, String workspaceNumber, String building, String floor, String block, String id);
 
     boolean existsByTypeIgnoreCaseAndEquipmentNameIgnoreCaseAndIdNot(String type, String equipmentName, String id);
 
