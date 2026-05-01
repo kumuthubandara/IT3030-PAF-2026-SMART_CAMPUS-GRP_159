@@ -22,7 +22,7 @@ export default function StudentSettingsPage() {
             <h1 className="font-heading text-3xl font-bold text-white sm:text-4xl">
               Settings
             </h1>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 max-w-xl text-sm text-slate-400">
               Signed in as <span className="text-slate-200">{user?.email}</span>
               {user?.role ? (
                 <>
@@ -30,15 +30,23 @@ export default function StudentSettingsPage() {
                   · Role <span className="text-slate-300">{String(user.role)}</span>
                 </>
               ) : null}
-              . Manage notification categories below (saved to the server).
+              . Notification toggles are saved to the server; account details reflect your current browser session.
             </p>
           </div>
-          <Link
-            to="/dashboard"
-            className="shrink-0 rounded-lg border border-cyan-400/50 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/10"
-          >
-            Back to dashboard
-          </Link>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link
+              to="/notifications"
+              className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/40 hover:text-cyan-200"
+            >
+              Notifications
+            </Link>
+            <Link
+              to="/dashboard"
+              className="rounded-lg border border-cyan-400/50 px-4 py-2 text-sm font-semibold text-cyan-200 transition hover:bg-cyan-400/10"
+            >
+              Dashboard
+            </Link>
+          </div>
         </div>
 
         <div className="mt-10 rounded-2xl border border-cyan-500/15 bg-slate-900/80 p-6 shadow-lg sm:p-8">

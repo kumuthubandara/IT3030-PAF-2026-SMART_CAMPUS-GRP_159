@@ -1111,6 +1111,17 @@ export default function AdminDashboardPage() {
                     Approve or reject booking requests. The requester receives an in-app notification
                     with the outcome.
                   </p>
+                  {!bookingsLoading ? (
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full border border-amber-500/35 bg-amber-500/10 px-3 py-1 font-semibold text-amber-100">
+                        Pending:{" "}
+                        {bookings.filter((b) => String(b.status).toUpperCase() === "PENDING").length}
+                      </span>
+                      <span className="rounded-full border border-slate-600/80 bg-slate-900/80 px-3 py-1 text-slate-300">
+                        All requests in system: {bookings.length}
+                      </span>
+                    </div>
+                  ) : null}
                   {bookingsLoading ? (
                     <p className="text-slate-500">Loading bookings…</p>
                   ) : bookings.filter((b) => String(b.status).toUpperCase() === "PENDING").length ===
@@ -1132,6 +1143,10 @@ export default function AdminDashboardPage() {
                               <span className="text-xs font-normal text-slate-500">({b.resourceId})</span>
                             </p>
                             <p className="text-xs text-slate-500">From: {b.requesterEmail}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Requested:{" "}
+                              <span className="text-slate-400">{formatDateTime(b.createdAt)}</span>
+                            </p>
                             {b.purpose ? (
                               <p className="mt-2 text-sm text-slate-400">{b.purpose}</p>
                             ) : null}

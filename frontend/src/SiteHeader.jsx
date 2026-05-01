@@ -92,6 +92,18 @@ export default function SiteHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
+          {user ? (
+            <Link
+              to="/settings"
+              className={`whitespace-nowrap text-sm font-medium transition ${
+                isActivePath(pathname, "/settings")
+                  ? "text-cyan-400"
+                  : "text-slate-400 hover:text-cyan-300"
+              }`}
+            >
+              Settings
+            </Link>
+          ) : null}
           <Link
             id="notifications-bell"
             to="/notifications#notifications"
