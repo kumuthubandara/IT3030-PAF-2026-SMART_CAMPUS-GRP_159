@@ -9,12 +9,5 @@ export default function StudentSettingsRoute() {
     return <Navigate to="/login?redirect=/settings" replace />;
   }
 
-  const role = String(user.role ?? "")
-    .trim()
-    .toLowerCase();
-  if (role !== "student") {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   return <StudentSettingsPage />;
 }

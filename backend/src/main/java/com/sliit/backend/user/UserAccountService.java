@@ -3,7 +3,11 @@ package com.sliit.backend.user;
 import com.sliit.backend.auth.UserRole;
 import com.sliit.backend.notification.NotificationService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,23 +18,47 @@ import java.util.Map;
 public class UserAccountService {
     private final UserAccountRepository userAccountRepository;
     private final NotificationService notificationService;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${app.auth.auto-approve-emails:}")
     private String autoApproveEmailsCsv;
 
     public UserAccountService(
             UserAccountRepository userAccountRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            @Lazy PasswordEncoder passwordEncoder) {
         this.userAccountRepository = userAccountRepository;
         this.notificationService = notificationService;
+        this.passwordEncoder = passwordEncoder;
+    }
+
+    /**
+     * Creates an active local account immediately (no pending approval). Used by administrators only.
+     */
+    public UserAccount createUserByAdmin(String name, String email, String plainPassword, UserRole role) {
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        if (userAccountRepository.findByEmailIgnoreCase(normalized).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "An account already exists for this email");
+        }
+        UserAccount user = new UserAccount();
+        user.setName(name.trim());
+        user.setEmail(normalized);
+        user.setRole(role);
+        user.setAccountStatus(AccountStatus.ACTIVE);
+        user.setProvider("local");
+        user.setPasswordHash(passwordEncoder.encode(plainPassword));
+        Instant now = Instant.now();
+        user.setCreatedAt(now);
+        user.setUpdatedAt(now);
+        return userAccountRepository.save(user);
     }
 
     public UserAccount findOrCreateOAuthUser(Map<String, Object> attributes, String provider) {
-        String email = String.valueOf(attributes.getOrDefault("email", "")).trim().toLowerCase();
+        String email = resolveOAuthEmail(attributes);
         if (email.isBlank()) {
-            throw new RuntimeException("OAuth email is required");
+            throw new RuntimeException("OAuth email is required (add email scope or preferred_username from IdP)");
         }
-        String name = String.valueOf(attributes.getOrDefault("name", email));
+        String name = resolveOAuthDisplayName(attributes, email);
         String providerId = String.valueOf(attributes.getOrDefault("sub", ""));
 
         UserAccount user = userAccountRepository.findByEmailIgnoreCase(email).orElseGet(() -> {
@@ -61,6 +89,48 @@ public class UserAccountService {
             }
         }
         return false;
+    }
+
+    /**
+     * Google OIDC exposes {@code email}; Microsoft often uses {@code preferred_username} (UPN) when email is absent.
+     */
+    private static String resolveOAuthEmail(Map<String, Object> attributes) {
+        String fromEmail = stringAttr(attributes, "email");
+        if (!fromEmail.isBlank() && fromEmail.contains("@")) {
+            return fromEmail.trim().toLowerCase(Locale.ROOT);
+        }
+        String preferred = stringAttr(attributes, "preferred_username");
+        if (!preferred.isBlank() && preferred.contains("@")) {
+            return preferred.trim().toLowerCase(Locale.ROOT);
+        }
+        return "";
+    }
+
+    private static String resolveOAuthDisplayName(Map<String, Object> attributes, String fallbackEmail) {
+        String name = stringAttr(attributes, "name");
+        if (!name.isBlank()) {
+            return name;
+        }
+        String given = stringAttr(attributes, "given_name");
+        String family = stringAttr(attributes, "family_name");
+        if (!given.isBlank() || !family.isBlank()) {
+            return (given + " " + family).trim();
+        }
+        String display = stringAttr(attributes, "displayName");
+        if (!display.isBlank()) {
+            return display;
+        }
+        int at = fallbackEmail.indexOf('@');
+        return at > 0 ? fallbackEmail.substring(0, at) : fallbackEmail;
+    }
+
+    private static String stringAttr(Map<String, Object> attributes, String key) {
+        Object v = attributes.get(key);
+        if (v == null) {
+            return "";
+        }
+        String s = String.valueOf(v).trim();
+        return "null".equalsIgnoreCase(s) ? "" : s;
     }
 
     public List<UserAccount> getAllUsers() {
@@ -116,5 +186,37 @@ public class UserAccountService {
                         + ".",
                 updated.getId());
         return updated;
+    }
+
+    public NotificationPreferences getEffectiveNotificationPreferences(String email) {
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        UserAccount user = userAccountRepository
+                .findByEmailIgnoreCase(normalized)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        NotificationPreferences stored = user.getNotificationPreferences();
+        if (stored == null) {
+            return new NotificationPreferences();
+        }
+        return copyPreferences(stored);
+    }
+
+    public NotificationPreferences updateNotificationPreferences(String email, NotificationPreferences prefs) {
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        UserAccount user = userAccountRepository
+                .findByEmailIgnoreCase(normalized)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        user.setNotificationPreferences(copyPreferences(prefs));
+        user.setUpdatedAt(Instant.now());
+        userAccountRepository.save(user);
+        return copyPreferences(prefs);
+    }
+
+    private static NotificationPreferences copyPreferences(NotificationPreferences src) {
+        NotificationPreferences p = new NotificationPreferences();
+        p.setBookingUpdates(src.isBookingUpdates());
+        p.setTicketStatusUpdates(src.isTicketStatusUpdates());
+        p.setTicketCommentUpdates(src.isTicketCommentUpdates());
+        p.setAccountUpdates(src.isAccountUpdates());
+        return p;
     }
 }

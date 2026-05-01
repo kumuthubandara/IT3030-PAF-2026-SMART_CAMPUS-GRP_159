@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import { apiPatch, apiPost } from "./api";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
@@ -157,6 +158,22 @@ export default function AdminDashboardPage() {
   const [roleSavingEmail, setRoleSavingEmail] = useState("");
   const [pendingUsers, setPendingUsers] = useState([]);
   const [pendingActionEmail, setPendingActionEmail] = useState("");
+  const [createUserForm, setCreateUserForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "STUDENT",
+  });
+  const [createUserSubmitting, setCreateUserSubmitting] = useState(false);
+  const [createUserSuccess, setCreateUserSuccess] = useState("");
+
+  const [bookings, setBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [bookingActionId, setBookingActionId] = useState("");
+
+  const [adminTickets, setAdminTickets] = useState([]);
+  const [adminTicketsLoading, setAdminTicketsLoading] = useState(false);
+  const [ticketStatusBusyId, setTicketStatusBusyId] = useState("");
 
   const [facilityResources, setFacilityResources] = useState([]);
   const [facilityLoading, setFacilityLoading] = useState(false);
@@ -275,6 +292,32 @@ export default function AdminDashboardPage() {
     }
   }
 
+  async function handleCreateUser(e) {
+    e.preventDefault();
+    setCreateUserSuccess("");
+    setUsersError("");
+    setCreateUserSubmitting(true);
+    try {
+      await apiPost(
+        "/api/admin/users",
+        {
+          name: createUserForm.name.trim(),
+          email: createUserForm.email.trim(),
+          password: createUserForm.password,
+          role: createUserForm.role,
+        },
+        authHeaders
+      );
+      setCreateUserForm({ name: "", email: "", password: "", role: "STUDENT" });
+      setCreateUserSuccess("User created. They can sign in with the password you set.");
+      await loadUsers();
+    } catch (err) {
+      setUsersError(err?.message || "Could not create user");
+    } finally {
+      setCreateUserSubmitting(false);
+    }
+  }
+
   async function loadContactMessages() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/contact-messages`);
@@ -305,7 +348,9 @@ export default function AdminDashboardPage() {
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=20`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=20`, {
+        headers: authHeaders,
+      });
       if (!res.ok) throw new Error("Failed to load");
 
       const data = await res.json();
@@ -314,6 +359,72 @@ export default function AdminDashboardPage() {
       }
     } catch {
       // keep current list if backend unavailable
+    }
+  }
+
+  async function loadBookings() {
+    try {
+      setBookingsLoading(true);
+      const res = await fetch(`${API_BASE_URL}/api/bookings`, {
+        headers: authHeaders,
+      });
+      if (!res.ok) throw new Error("Failed to load bookings");
+      const data = await res.json();
+      setBookings(Array.isArray(data) ? data : []);
+    } catch {
+      setBookings([]);
+    } finally {
+      setBookingsLoading(false);
+    }
+  }
+
+  async function loadAdminTickets() {
+    try {
+      setAdminTicketsLoading(true);
+      const res = await fetch(`${API_BASE_URL}/api/tickets`, {
+        headers: authHeaders,
+      });
+      if (!res.ok) throw new Error("Failed to load tickets");
+      const data = await res.json();
+      setAdminTickets(Array.isArray(data) ? data : []);
+    } catch {
+      setAdminTickets([]);
+    } finally {
+      setAdminTicketsLoading(false);
+    }
+  }
+
+  async function decideBooking(bookingId, approved) {
+    try {
+      setBookingActionId(bookingId);
+      setUsersError("");
+      await apiPatch(
+        `/api/bookings/${encodeURIComponent(bookingId)}/decision`,
+        authHeaders,
+        { approved, note: "" }
+      );
+      await loadBookings();
+    } catch {
+      setUsersError("Could not update booking");
+    } finally {
+      setBookingActionId("");
+    }
+  }
+
+  async function setAdminTicketStatus(ticketId, status) {
+    try {
+      setTicketStatusBusyId(ticketId);
+      setUsersError("");
+      await apiPatch(
+        `/api/tickets/${encodeURIComponent(ticketId)}/status`,
+        authHeaders,
+        { status }
+      );
+      await loadAdminTickets();
+    } catch {
+      setUsersError("Could not update ticket status");
+    } finally {
+      setTicketStatusBusyId("");
     }
   }
 
@@ -448,6 +559,14 @@ export default function AdminDashboardPage() {
 
     if (modal === "facilities") {
       void loadFacilityResources();
+    }
+
+    if (modal === "manage-bookings") {
+      void loadBookings();
+    }
+
+    if (modal === "maintenance") {
+      void loadAdminTickets();
     }
 
     function onKey(e) {
@@ -639,9 +758,79 @@ export default function AdminDashboardPage() {
               {modal === "users" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Approve new registrations below, then manage roles for active accounts. Role changes are
-                    saved to the backend and users receive an in-app notification.
+                    Add a new account with a temporary password, approve self-registrations, or change roles.
+                    New users you add here are <strong className="text-slate-200">active immediately</strong> and
+                    can sign in on the login page.
                   </p>
+                  <form
+                    onSubmit={handleCreateUser}
+                    className="rounded-2xl border border-cyan-500/20 bg-slate-950/60 p-4"
+                  >
+                    <h3 className="text-sm font-semibold text-cyan-200">Add new user</h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Creates a <strong className="text-slate-300">local</strong> password account (not Google).
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <input
+                        type="text"
+                        required
+                        value={createUserForm.name}
+                        onChange={(ev) =>
+                          setCreateUserForm((f) => ({ ...f, name: ev.target.value }))
+                        }
+                        placeholder="Full name"
+                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        autoComplete="name"
+                      />
+                      <input
+                        type="email"
+                        required
+                        value={createUserForm.email}
+                        onChange={(ev) =>
+                          setCreateUserForm((f) => ({ ...f, email: ev.target.value }))
+                        }
+                        placeholder="Email"
+                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        autoComplete="off"
+                      />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={createUserForm.password}
+                        onChange={(ev) =>
+                          setCreateUserForm((f) => ({ ...f, password: ev.target.value }))
+                        }
+                        placeholder="Temporary password (min 6 characters)"
+                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
+                        autoComplete="new-password"
+                      />
+                      <select
+                        value={createUserForm.role}
+                        onChange={(ev) =>
+                          setCreateUserForm((f) => ({ ...f, role: ev.target.value }))
+                        }
+                        className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                      >
+                        <option value="STUDENT">STUDENT</option>
+                        <option value="LECTURER">LECTURER</option>
+                        <option value="TECHNICIAN">TECHNICIAN</option>
+                        <option value="ADMINISTRATOR">ADMINISTRATOR</option>
+                      </select>
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <button
+                        type="submit"
+                        disabled={createUserSubmitting}
+                        className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50"
+                      >
+                        {createUserSubmitting ? "Creating…" : "Create user"}
+                      </button>
+                      {createUserSuccess ? (
+                        <p className="text-xs text-emerald-300">{createUserSuccess}</p>
+                      ) : null}
+                    </div>
+                  </form>
                   {pendingUsers.length > 0 ? (
                     <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4">
                       <h3 className="text-sm font-semibold text-amber-200">Pending registration approval</h3>
@@ -915,27 +1104,117 @@ export default function AdminDashboardPage() {
               {modal === "manage-bookings" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Approve or reject booking requests, resolve conflicts, and enforce policy. Wire
-                    this panel to your scheduling service when APIs are available.
+                    Approve or reject booking requests. The requester receives an in-app notification
+                    with the outcome.
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No pending approvals (demo).
-                  </div>
+                  {bookingsLoading ? (
+                    <p className="text-slate-500">Loading bookings…</p>
+                  ) : bookings.filter((b) => String(b.status).toUpperCase() === "PENDING").length ===
+                    0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
+                      No pending booking requests.
+                    </div>
+                  ) : (
+                    <ul className="space-y-3">
+                      {bookings
+                        .filter((b) => String(b.status).toUpperCase() === "PENDING")
+                        .map((b) => (
+                          <li
+                            key={b.id}
+                            className="rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3"
+                          >
+                            <p className="font-medium text-slate-100">
+                              {b.resourceName || b.resourceId}{" "}
+                              <span className="text-xs font-normal text-slate-500">({b.resourceId})</span>
+                            </p>
+                            <p className="text-xs text-slate-500">From: {b.requesterEmail}</p>
+                            {b.purpose ? (
+                              <p className="mt-2 text-sm text-slate-400">{b.purpose}</p>
+                            ) : null}
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                disabled={bookingActionId === b.id}
+                                onClick={() => void decideBooking(b.id, true)}
+                                className="rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                disabled={bookingActionId === b.id}
+                                onClick={() => void decideBooking(b.id, false)}
+                                className="rounded-full border border-red-500/50 px-3 py-1 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-50"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                  {!bookingsLoading && bookings.length > 0 ? (
+                    <p className="text-xs text-slate-500">
+                      Total requests (including decided): {bookings.length}. Pending only are listed
+                      above.
+                    </p>
+                  ) : null}
                 </div>
               )}
 
               {modal === "maintenance" && (
                 <div className="space-y-4 text-sm text-slate-400">
                   <p>
-                    Oversee all maintenance and incident tickets across campus. Open the{" "}
+                    Campus maintenance tickets (same data as the{" "}
                     <Link to="/maintenance" className="font-medium text-cyan-400 hover:text-cyan-300">
                       Maintenance
                     </Link>{" "}
-                    page for the shared campus view used by technicians and reporters.
+                    page). Changing status notifies the reporter.
                   </p>
-                  <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
-                    No tickets in this panel (demo).
-                  </div>
+                  {usersError ? (
+                    <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                      {usersError}
+                    </p>
+                  ) : null}
+                  {adminTicketsLoading ? (
+                    <p className="text-slate-500">Loading tickets…</p>
+                  ) : adminTickets.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-600/60 bg-slate-950/50 p-8 text-center text-slate-500">
+                      No tickets yet.
+                    </div>
+                  ) : (
+                    <ul className="max-h-[55vh] space-y-3 overflow-y-auto pr-1">
+                      {adminTickets.map((t) => (
+                        <li
+                          key={t.id}
+                          className="rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3"
+                        >
+                          <p className="font-medium text-white">{t.title}</p>
+                          <p className="text-xs text-slate-500">
+                            {t.reporterEmail} · {String(t.status || "").replaceAll("_", " ")}
+                          </p>
+                          <p className="mt-2 line-clamp-2 text-sm text-slate-400">{t.description}</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {["OPEN", "IN_PROGRESS", "RESOLVED"].map((st) => (
+                              <button
+                                key={st}
+                                type="button"
+                                disabled={ticketStatusBusyId === t.id || t.status === st}
+                                onClick={() => void setAdminTicketStatus(t.id, st)}
+                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                                  t.status === st
+                                    ? "bg-cyan-400 text-slate-950"
+                                    : "border border-slate-600 text-slate-300 hover:border-cyan-400/40"
+                                } disabled:opacity-50`}
+                              >
+                                {st.replaceAll("_", " ")}
+                              </button>
+                            ))}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 

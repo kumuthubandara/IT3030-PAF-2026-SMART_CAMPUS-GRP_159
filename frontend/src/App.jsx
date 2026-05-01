@@ -9,6 +9,7 @@ import NotificationsPage from "./NotificationsPage";
 import LoginPage from "./LoginPage";
 import SignUpPage from "./SignUpPage";
 import StudentSettingsRoute from "./StudentSettingsRoute";
+import ProtectedRoute from "./ProtectedRoute";
 
 export default function App() {
   return (
@@ -18,8 +19,22 @@ export default function App() {
         <Route path="/about" element={<AboutUsPage />} />
         <Route path="/contact" element={<ContactUsPage />} />
         <Route path="/facilities" element={<FacilitiesPage />} />
-        <Route path="/maintenance" element={<MaintenancePage />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
+        <Route
+          path="/maintenance"
+          element={
+            <ProtectedRoute>
+              <MaintenancePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/dashboard" element={<DashboardRoute />} />

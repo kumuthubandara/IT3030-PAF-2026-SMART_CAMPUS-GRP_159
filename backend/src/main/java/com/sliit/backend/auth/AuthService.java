@@ -77,7 +77,7 @@ public class AuthService {
         }
 
         if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
-            throw new RuntimeException("This account uses social login. Please sign in with Google.");
+            throw new RuntimeException("This account uses social login. Please sign in with your OAuth provider.");
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Invalid email or password");

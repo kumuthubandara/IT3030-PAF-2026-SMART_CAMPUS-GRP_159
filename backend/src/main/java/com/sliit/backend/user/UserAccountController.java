@@ -1,5 +1,6 @@
 package com.sliit.backend.user;
 
+import com.sliit.backend.user.dto.CreateUserRequest;
 import com.sliit.backend.user.dto.UpdateUserRoleRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,16 @@ public class UserAccountController {
 
     public UserAccountController(UserAccountService userAccountService) {
         this.userAccountService = userAccountService;
+    }
+
+    @PostMapping
+    public ResponseEntity<UserAccount> createUser(@Valid @RequestBody CreateUserRequest request) {
+        UserAccount created = userAccountService.createUserByAdmin(
+                request.getName(),
+                request.getEmail(),
+                request.getPassword(),
+                request.getRole());
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping

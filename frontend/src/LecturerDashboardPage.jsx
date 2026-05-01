@@ -144,10 +144,16 @@ export default function LecturerDashboardPage() {
   const displayName = user?.name || "Lecturer";
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
+  const authHeaders = {
+    "X-User-Email": user?.email || "",
+    "X-User-Role": String(user?.role || "lecturer").toUpperCase(),
+  };
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`, {
+        headers: authHeaders,
+      });
       if (!res.ok) {
         throw new Error("Failed to load recent activity");
       }

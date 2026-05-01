@@ -24,6 +24,9 @@ public class UserAccount {
     private Instant createdAt;
     private Instant updatedAt;
 
+    /** When null, all notification categories are treated as enabled. */
+    private NotificationPreferences notificationPreferences;
+
     public String getId() {
         return id;
     }
@@ -109,5 +112,13 @@ public class UserAccount {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public NotificationPreferences getNotificationPreferences() {
+        return notificationPreferences;
+    }
+
+    public void setNotificationPreferences(NotificationPreferences notificationPreferences) {
+        this.notificationPreferences = notificationPreferences;
     }
 }

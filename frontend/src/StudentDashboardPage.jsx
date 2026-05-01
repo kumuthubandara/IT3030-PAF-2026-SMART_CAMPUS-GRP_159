@@ -92,10 +92,16 @@ export default function StudentDashboardPage() {
   const displayName = user?.name || "Student";
   const [modal, setModal] = useState(null);
   const [recentActivities, setRecentActivities] = useState([]);
+  const authHeaders = {
+    "X-User-Email": user?.email || "",
+    "X-User-Role": String(user?.role || "student").toUpperCase(),
+  };
 
   async function loadRecentActivities() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/activities?limit=10`, {
+        headers: authHeaders,
+      });
       if (!res.ok) {
         throw new Error("Failed to load recent activity");
       }

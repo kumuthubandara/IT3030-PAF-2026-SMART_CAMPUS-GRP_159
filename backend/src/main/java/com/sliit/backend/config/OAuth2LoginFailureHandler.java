@@ -23,7 +23,7 @@ public class OAuth2LoginFailureHandler implements AuthenticationFailureHandler {
             AuthenticationException exception) throws IOException, ServletException {
         String redirectUrl = UriComponentsBuilder.fromUriString(frontendOAuthSuccessUrl)
                 .queryParam("oauth", "error")
-                .queryParam("message", "Google sign-in failed. Check OAuth client settings.")
+                .queryParam("message", "OAuth sign-in failed. Check your provider client ID, secret, and redirect URI.")
                 .build()
                 .toUriString();
         response.sendRedirect(redirectUrl);

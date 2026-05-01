@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { Link } from "react-router-dom";
+import { apiPost } from "./api";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 
@@ -222,6 +223,48 @@ export default function FacilitiesPage() {
   const [locationFilter, setLocationFilter] = useState("");
   const [capacityFilter, setCapacityFilter] = useState("");
 
+  const [bookingResourceId, setBookingResourceId] = useState("");
+  const [bookingPurpose, setBookingPurpose] = useState("");
+  const [bookingBusy, setBookingBusy] = useState(false);
+  const [bookingMsg, setBookingMsg] = useState("");
+
+  const bookingAuthHeaders = useMemo(() => {
+    if (!user?.email) return {};
+    return {
+      "Content-Type": "application/json",
+      "X-User-Email": user.email,
+      "X-User-Role": String(user.role || "student").toUpperCase(),
+    };
+  }, [user]);
+
+  async function handleBookingSubmit(e) {
+    e.preventDefault();
+    if (!user?.email || !bookingResourceId) {
+      setBookingMsg("Select a resource.");
+      return;
+    }
+    setBookingBusy(true);
+    setBookingMsg("");
+    const res = apiResources.find((r) => r.id === bookingResourceId);
+    try {
+      await apiPost(
+        "/api/bookings",
+        {
+          resourceId: bookingResourceId,
+          resourceName: res?.name || "",
+          purpose: bookingPurpose.trim() || undefined,
+        },
+        bookingAuthHeaders
+      );
+      setBookingMsg("Request submitted. You will be notified when an administrator approves or rejects it.");
+      setBookingPurpose("");
+    } catch (err) {
+      setBookingMsg(err.message || "Could not submit booking.");
+    } finally {
+      setBookingBusy(false);
+    }
+  }
+
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8081"}/api/resources`)
       .then((res) => {
@@ -351,6 +394,59 @@ export default function FacilitiesPage() {
             ) : null}
           </div>
         </section>
+
+        {(isStudent || isLecturer) && user ? (
+          <section className="mx-auto w-full max-w-3xl px-4 pb-10 sm:px-6 lg:px-8">
+            <div className="rounded-2xl border border-emerald-500/25 bg-slate-900/80 p-6 shadow-lg shadow-emerald-950/20">
+              <h3 className="font-heading text-lg font-semibold text-emerald-200">Request a booking</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Pick a resource from the catalogue below (loaded from the backend). An administrator
+                will approve or reject your request; you will get an in-app notification with the result.
+              </p>
+              <form onSubmit={handleBookingSubmit} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300">Resource</label>
+                  <select
+                    required
+                    value={bookingResourceId}
+                    onChange={(e) => setBookingResourceId(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-slate-600/80 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none ring-cyan-500/40 focus:ring-2"
+                  >
+                    <option value="">Select a resource…</option>
+                    {apiResources.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name} — {r.type} ({r.location || "campus"})
+                      </option>
+                    ))}
+                  </select>
+                  {loadingResources ? (
+                    <p className="mt-1 text-xs text-slate-500">Loading resources…</p>
+                  ) : null}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300">Purpose (optional)</label>
+                  <textarea
+                    value={bookingPurpose}
+                    onChange={(e) => setBookingPurpose(e.target.value)}
+                    className="mt-2 min-h-[80px] w-full rounded-xl border border-slate-600/80 bg-slate-950/80 px-4 py-3 text-slate-100 outline-none ring-cyan-500/40 focus:ring-2"
+                    placeholder="Module session, society meeting, etc."
+                    maxLength={500}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={bookingBusy || loadingResources || apiResources.length === 0}
+                  className="rounded-xl bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {bookingBusy ? "Submitting…" : "Submit booking request"}
+                </button>
+                {bookingMsg ? (
+                  <p className="text-sm text-cyan-200/95">{bookingMsg}</p>
+                ) : null}
+              </form>
+            </div>
+          </section>
+        ) : null}
 
         <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="grid gap-5 md:grid-cols-2">

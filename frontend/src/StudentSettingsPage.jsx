@@ -13,7 +13,7 @@ export default function StudentSettingsPage() {
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
         <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400/90">
-          SMART CAMPUS • STUDENT
+          SMART CAMPUS • ACCOUNT
         </p>
 
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -22,8 +22,14 @@ export default function StudentSettingsPage() {
               Settings
             </h1>
             <p className="mt-2 text-sm text-slate-400">
-              Signed in as <span className="text-slate-200">{user?.email}</span>. Demo
-              controls only — connect your API when ready.
+              Signed in as <span className="text-slate-200">{user?.email}</span>
+              {user?.role ? (
+                <>
+                  {" "}
+                  · Role <span className="text-slate-300">{String(user.role)}</span>
+                </>
+              ) : null}
+              . Manage notification categories below (saved to the server).
             </p>
           </div>
           <Link

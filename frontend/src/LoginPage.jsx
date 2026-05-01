@@ -23,19 +23,20 @@ export default function LoginPage() {
   useEffect(() => {
     const oauth = searchParams.get("oauth");
     const emailFromOAuth = searchParams.get("email");
+    const providerFromOAuth = (searchParams.get("provider") || "oauth").toLowerCase();
     // Avoid replacing an existing session with stale ?oauth=success query params.
     if (oauth === "success" && user) {
       return;
     }
     if (oauth === "error") {
-      setError(searchParams.get("message") || "Google sign-in failed.");
+      setError(searchParams.get("message") || "OAuth sign-in failed.");
       setInfoMessage("");
       return;
     }
     if (oauth === "pending") {
       setInfoMessage(
         emailFromOAuth
-          ? `Google sign-in completed for ${emailFromOAuth}, but an administrator must approve your account before you can use the app.`
+          ? `OAuth sign-in completed for ${emailFromOAuth}, but an administrator must approve your account before you can use the app.`
           : "Your account is waiting for administrator approval before you can sign in."
       );
       setError("");
@@ -46,7 +47,7 @@ export default function LoginPage() {
       name: searchParams.get("name") || emailFromOAuth.split("@")[0],
       email: emailFromOAuth,
       role: searchParams.get("role") || "student",
-      authProvider: "google",
+      authProvider: providerFromOAuth,
       accountStatus: (searchParams.get("accountStatus") || "active").toLowerCase(),
     });
     navigate("/dashboard", { replace: true });
@@ -112,7 +113,7 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-8 shadow-xl shadow-cyan-950/30">
           <h1 className="font-heading text-2xl font-bold text-white">Sign in</h1>
           <p className="mt-2 text-sm text-slate-400">
-            Sign in with your Smart Campus account, or continue with Google.
+            Sign in with your Smart Campus account, or continue with Google or Microsoft.
           </p>
 
           <details className="mt-5 rounded-xl border border-slate-600/60 bg-slate-950/50 px-4 py-3 text-left">
@@ -189,12 +190,20 @@ export default function LoginPage() {
             >
               {isSubmitting ? "Signing in..." : "Sign in"}
             </button>
-            <a
-              href={`${getApiBaseUrl()}/oauth2/authorization/google`}
-              className="block w-full rounded-xl border border-slate-600/80 bg-slate-950/80 py-3 text-center text-sm font-semibold text-slate-100 transition hover:border-cyan-400/50 hover:text-cyan-300"
-            >
-              Continue with Google
-            </a>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <a
+                href={`${getApiBaseUrl()}/oauth2/authorization/google`}
+                className="block w-full rounded-xl border border-slate-600/80 bg-slate-950/80 py-3 text-center text-sm font-semibold text-slate-100 transition hover:border-cyan-400/50 hover:text-cyan-300"
+              >
+                Continue with Google
+              </a>
+              <a
+                href={`${getApiBaseUrl()}/oauth2/authorization/microsoft`}
+                className="block w-full rounded-xl border border-slate-600/80 bg-slate-950/80 py-3 text-center text-sm font-semibold text-slate-100 transition hover:border-cyan-400/50 hover:text-cyan-300"
+              >
+                Continue with Microsoft
+              </a>
+            </div>
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-400">

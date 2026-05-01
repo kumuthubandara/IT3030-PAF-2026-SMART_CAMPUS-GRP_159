@@ -170,6 +170,12 @@ export default function SignUpPage() {
             >
               Create account with Google
             </a>
+            <a
+              href={`${getApiBaseUrl()}/oauth2/authorization/microsoft`}
+              className="block w-full rounded-xl border border-slate-600/80 bg-slate-950/80 py-3 text-center text-sm font-semibold text-slate-100 transition hover:border-cyan-400/50 hover:text-cyan-300"
+            >
+              Create account with Microsoft
+            </a>
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-400">

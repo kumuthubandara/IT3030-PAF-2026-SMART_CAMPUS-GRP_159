@@ -34,7 +34,7 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
                 && !email.isBlank()
                 && role != null
                 && !role.isBlank()) {
-            String normalizedRole = role.trim().toUpperCase();
+            String normalizedRole = normalizeRole(role);
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                     email.trim().toLowerCase(),
                     null,
@@ -44,5 +44,16 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private static String normalizeRole(String rawRole) {
+        String role = rawRole == null ? "" : rawRole.trim().toUpperCase();
+        if ("ADMIN".equals(role)) {
+            return "ADMINISTRATOR";
+        }
+        if ("USER".equals(role)) {
+            return "STUDENT";
+        }
+        return role;
     }
 }
