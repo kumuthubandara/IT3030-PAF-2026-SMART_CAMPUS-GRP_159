@@ -58,7 +58,14 @@ export default function SignUpPage() {
         navigate("/dashboard", { replace: true });
       })
       .catch((err) => {
-        setError(err.message || "Unable to create account");
+        const msg = String(err?.message || "");
+        if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+          setError(
+            `Cannot reach the API at ${getApiBaseUrl()}. Start the backend (port 8081), check MongoDB in backend/.env, then try again.`
+          );
+        } else {
+          setError(msg || "Unable to create account");
+        }
       })
       .finally(() => {
         setIsSubmitting(false);

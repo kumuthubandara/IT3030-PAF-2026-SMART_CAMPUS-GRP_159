@@ -92,7 +92,14 @@ export default function LoginPage() {
         navigate(next, { replace: true });
       })
       .catch((err) => {
-        setError(err.message || "Unable to sign in");
+        const msg = String(err?.message || "");
+        if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+          setError(
+            `Cannot reach the API at ${getApiBaseUrl()}. Start the backend on port 8081 (from the backend folder: .\\mvnw.cmd spring-boot:run), ensure MongoDB is configured in backend/.env, then refresh this page.`
+          );
+        } else {
+          setError(msg || "Unable to sign in");
+        }
       })
       .finally(() => {
         setIsSubmitting(false);

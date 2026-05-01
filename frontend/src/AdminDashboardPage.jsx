@@ -5,12 +5,12 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
-import { apiPatch, apiPost } from "./api";
+import { apiPatch, apiPost, getApiBaseUrl } from "./api";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
 import StudentSettingsForm from "./StudentSettingsForm";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+const API_BASE_URL = getApiBaseUrl();
 const RESOURCE_API_URL = `${API_BASE_URL}/api/resources`;
 const CONTACT_MESSAGES_KEY = "smart-campus-contact-messages";
 
@@ -437,14 +437,30 @@ export default function AdminDashboardPage() {
       setFacilityLoading(true);
       setFacilityError("");
 
-      const res = await fetch(RESOURCE_API_URL);
-      if (!res.ok) throw new Error("Failed to load resources");
+      const res = await fetch(RESOURCE_API_URL, { headers: authHeaders });
+      if (!res.ok) {
+        let detail = `${res.status}`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.message) detail = errBody.message;
+        } catch {
+          /* non-JSON body */
+        }
+        throw new Error(detail);
+      }
 
       const data = await res.json();
       setFacilityResources(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
-      setFacilityError("Could not load facilities");
+      const msg = String(error?.message || "");
+      if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+        setFacilityError(
+          "Could not reach the API. Start the backend (port 8081) and set VITE_API_BASE_URL if needed."
+        );
+      } else {
+        setFacilityError(msg ? `Could not load facilities (${msg})` : "Could not load facilities");
+      }
     } finally {
       setFacilityLoading(false);
     }
@@ -495,9 +511,7 @@ export default function AdminDashboardPage() {
 
       const res = await fetch(url, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: authHeaders,
         body: JSON.stringify(payload),
       });
 
@@ -533,6 +547,7 @@ export default function AdminDashboardPage() {
 
       const res = await fetch(`${RESOURCE_API_URL}/${id}`, {
         method: "DELETE",
+        headers: authHeaders,
       });
 
       if (!res.ok) throw new Error("Failed to delete resource");
