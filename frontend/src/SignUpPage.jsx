@@ -1,3 +1,4 @@
+/** Self-registration (POST /api/auth/signup); campus role selects Mongo user role. Route: /signup */
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";

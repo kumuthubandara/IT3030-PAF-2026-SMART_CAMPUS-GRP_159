@@ -1,3 +1,4 @@
+/** Guards /settings: redirects to login if anonymous. */
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import StudentSettingsPage from "./StudentSettingsPage";

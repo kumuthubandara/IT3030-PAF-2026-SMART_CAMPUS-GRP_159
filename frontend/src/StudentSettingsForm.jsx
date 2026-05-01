@@ -1,3 +1,6 @@
+/**
+ * Notification preference toggles (GET/PATCH /api/notification-preferences). Requires auth headers.
+ */
 import { useEffect, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { apiGet, apiPatch } from "./api";

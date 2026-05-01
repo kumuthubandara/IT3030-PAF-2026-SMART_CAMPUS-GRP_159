@@ -1,3 +1,7 @@
+/**
+ * Module A UI: lists Mongo resources, search/filter, booking request form (POST /api/bookings).
+ * Route: /facilities
+ */
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "./AuthContext";
 import { Link } from "react-router-dom";

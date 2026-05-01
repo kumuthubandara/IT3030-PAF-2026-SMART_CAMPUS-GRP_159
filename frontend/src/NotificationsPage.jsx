@@ -1,3 +1,6 @@
+/**
+ * Module D UI: notification inbox (GET /api/notifications), mark read/delete. Route: /notifications
+ */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import SiteHeader from "./SiteHeader";

@@ -1,3 +1,4 @@
+/** Global nav + unread notification badge (polls /api/notifications/unread-count). */
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";

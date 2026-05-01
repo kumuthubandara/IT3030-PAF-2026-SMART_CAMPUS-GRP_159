@@ -1,3 +1,4 @@
+/** Landing page: hero, feature grid, hash navigation (#features). Route: /. */
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import SiteHeader from "./SiteHeader";

@@ -1,3 +1,7 @@
+/**
+ * Client-side session: stores logged-in user in sessionStorage; exposes login/logout and role helpers.
+ * API calls should send X-User-Email + X-User-Role headers (see dashboards) for backend RBAC.
+ */
 import {
   createContext,
   useCallback,

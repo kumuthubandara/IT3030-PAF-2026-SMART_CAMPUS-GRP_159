@@ -1,3 +1,4 @@
+/** Settings shell wrapping StudentSettingsForm. Route: /settings (all logged-in roles). */
 import { Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 import SiteHeader from "./SiteHeader";

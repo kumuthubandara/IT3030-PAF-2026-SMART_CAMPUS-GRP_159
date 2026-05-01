@@ -1,3 +1,7 @@
+/**
+ * Root router: public pages, login/signup, role-based /dashboard, protected /maintenance and /notifications,
+ * and /settings for notification preferences.
+ */
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import SmartCampusHomePage from "./SmartCampusHomePage";
 import AboutUsPage from "./AboutUsPage";

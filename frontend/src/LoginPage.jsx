@@ -1,3 +1,7 @@
+/**
+ * Email/password login + links to Google/Microsoft OAuth (backend /oauth2/authorization/*).
+ * OAuth return: ?oauth=success|pending|error on /login.
+ */
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "./AuthContext";

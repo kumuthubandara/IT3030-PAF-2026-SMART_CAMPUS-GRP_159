@@ -1,3 +1,4 @@
+/** Fallback dashboard when role is unknown or generic. */
 import { Link } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";

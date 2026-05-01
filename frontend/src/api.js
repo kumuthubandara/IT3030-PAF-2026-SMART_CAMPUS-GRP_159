@@ -1,3 +1,7 @@
+/**
+ * HTTP helpers for Spring Boot API. Base URL: VITE_API_BASE_URL or http://localhost:8081.
+ * Sends JSON; expects backend errors as JSON with message field where applicable.
+ */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 export function getApiBaseUrl() {

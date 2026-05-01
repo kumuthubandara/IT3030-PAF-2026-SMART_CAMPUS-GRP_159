@@ -1,3 +1,6 @@
+/**
+ * Module C UI: create/list tickets, comments, status (staff). Protected route. Uses /api/tickets.
+ */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import SiteHeader from "./SiteHeader";

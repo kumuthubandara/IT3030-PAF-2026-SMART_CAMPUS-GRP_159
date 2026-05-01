@@ -1,3 +1,4 @@
+/** Static about / team page. Route: /about */
 import { Link } from "react-router-dom";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";

@@ -17,6 +17,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+/**
+ * HTTP security: RBAC on {@code /api/**}, OAuth2 login for Google/Microsoft, header-based identity for the SPA,
+ * and CORS for {@code localhost} dev ports.
+ */
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {

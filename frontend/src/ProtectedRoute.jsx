@@ -1,3 +1,6 @@
+/**
+ * Wraps pages that need login; optional allowedRoles (e.g. technician) for extra RBAC on the client.
+ */
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthContext";
 

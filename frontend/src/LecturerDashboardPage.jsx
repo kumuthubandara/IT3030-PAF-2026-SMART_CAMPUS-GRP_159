@@ -1,3 +1,4 @@
+/** Lecturer role dashboard: recent activity modal and campus shortcuts. Routed via DashboardRoute. */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";

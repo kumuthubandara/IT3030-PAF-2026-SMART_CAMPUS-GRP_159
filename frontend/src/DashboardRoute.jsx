@@ -1,3 +1,6 @@
+/**
+ * Route /dashboard: picks Student / Lecturer / Technician / Admin dashboard from AuthContext role.
+ */
 import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";

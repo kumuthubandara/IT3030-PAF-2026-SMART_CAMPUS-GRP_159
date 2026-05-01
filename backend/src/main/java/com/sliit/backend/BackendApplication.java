@@ -8,6 +8,10 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * Spring Boot entry point: enables JPA (recent activities) and MongoDB (users, resources, bookings, tickets,
+ * notifications). {@link #main} may point Dotenv at {@code backend/.env} when the JVM cwd is the repo root.
+ */
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = {"com.sliit.backend.activity"})
 @EnableMongoRepositories(basePackages = {

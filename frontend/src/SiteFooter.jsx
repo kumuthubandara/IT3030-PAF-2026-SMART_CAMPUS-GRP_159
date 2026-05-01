@@ -1,3 +1,4 @@
+/** Footer with repo link and policy placeholders. */
 import { Link } from "react-router-dom";
 
 const REPO_URL =
